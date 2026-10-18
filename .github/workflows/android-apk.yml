@@ -1,0 +1,65 @@
+name: Android APK
+
+on:
+  pull_request:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      - name: Typecheck und Tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Android-Projekt erzeugen
+        run: npx expo prebuild --platform android --no-install
+
+      # Expo signiert Release-Builds standardmäßig mit dem Debug-Schlüssel: zum Testen installierbar,
+      # für den Play Store braucht es später einen eigenen Schlüssel.
+      - name: APK bauen
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
+
+      - name: APK umbenennen
+        run: |
+          NAME="hitster-${GITHUB_REF_NAME//\//-}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$NAME"
+          echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hitster-apk
+          path: ${{ env.APK_NAME }}
+
+      - name: Release veröffentlichen
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APK_NAME }}
+          body: |
+            Android-APK zum Testen. Auf dem Handy herunterladen, öffnen und „Installation aus unbekannten Quellen“ erlauben.
+            Für Musik in der App unter „Spotify“ die Client-ID eintragen (Anleitung in der README).
