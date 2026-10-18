@@ -30,13 +30,20 @@ npx expo start
 Dann den QR-Code mit der **Expo Go**-App scannen. Ohne Spotify läuft ein stummer Demo-Modus, so kann man alles schon
 durchklicken.
 
+## APK zum Testen (Android)
+
+Unter [Releases](https://github.com/yuxizhang11/hitster-app/releases) liegt die neueste APK. Auf dem Handy herunterladen,
+öffnen und „Installation aus unbekannten Quellen“ erlauben. Eine neue Release entsteht automatisch, sobald ein Tag wie
+`v0.2.0` gepusht wird (GitHub Actions, `.github/workflows/android-apk.yml`). Jeder Pull Request baut die APK ebenfalls,
+sie hängt dann als Artefakt am Actions-Lauf.
+
 ## Spotify einrichten (einmalig)
 
 Spotify erlaubt das Abspielen über fremde Apps nur mit **Premium**. Die Musik läuft über die Spotify-App auf dem Handy.
 
 1. Auf <https://developer.spotify.com/dashboard> eine App anlegen, „Web API“ ankreuzen.
 2. Als Redirect-URI die Adresse eintragen, die in der App unter **Spotify** angezeigt wird
-   (in Expo Go etwas wie `exp://192.168.x.x:8081/--/spotify-auth`, in einem eigenen Build `hitster://spotify-auth`).
+   (in der APK `hitster://spotify-auth`, in Expo Go etwas wie `exp://192.168.x.x:8081/--/spotify-auth`).
 3. Unter „User Management“ die Spotify-E-Mail aller Personen eintragen, die sich einloggen sollen
    (Apps im Entwicklungsmodus sind auf wenige Nutzer beschränkt).
 4. Die Client-ID in der App unter **Spotify** einfügen (oder als `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` in `.env`) und verbinden.
