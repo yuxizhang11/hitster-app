@@ -33,8 +33,8 @@ durchklicken.
 ## APK zum Testen (Android)
 
 Unter [Releases](https://github.com/yuxizhang11/hitster-app/releases) liegt die neueste APK. Auf dem Handy herunterladen,
-öffnen und „Installation aus unbekannten Quellen“ erlauben. Eine neue Release entsteht automatisch, sobald ein Tag wie
-`v0.2.0` gepusht wird (GitHub Actions, `.github/workflows/android-apk.yml`). Jeder Pull Request baut die APK ebenfalls,
+öffnen und „Installation aus unbekannten Quellen“ erlauben. Eine neue Release entsteht unter **Actions → Android APK →
+Run workflow** (Version wie `v0.2.0` eingeben) oder automatisch, sobald ein Tag wie `v0.2.0` gepusht wird. Jeder Pull Request baut die APK ebenfalls,
 sie hängt dann als Artefakt am Actions-Lauf.
 
 ## Spotify einrichten (einmalig)
