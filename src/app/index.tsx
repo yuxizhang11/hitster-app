@@ -57,6 +57,17 @@ export default function Home() {
         </Card>
       </Pressable>
 
+      <Pressable onPress={() => router.push('/songs')}>
+        <Card style={styles.spotify}>
+          <Ionicons name="list" size={28} color={colors.cyan} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.spotifyTitle}>Songlisten</Text>
+            <P>Songs pro Kategorie ansehen, ausblenden oder eigene hinzufügen.</P>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+        </Card>
+      </Pressable>
+
       <P style={{ textAlign: 'center', color: colors.textMuted }}>Ein Handy, das herumgereicht wird · 1 bis 8 Spieler</P>
     </Screen>
   );

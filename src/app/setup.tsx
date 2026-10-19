@@ -191,6 +191,9 @@ export default function SetupScreen() {
           </View>
         </Pressable>
       </View>
+      <Pressable onPress={() => router.push('/songs')} hitSlop={6}>
+        <Text style={{ color: colors.cyan, fontWeight: '700' }}>Songlisten ansehen und bearbeiten ›</Text>
+      </Pressable>
       <P style={{ color: songCount < needed ? colors.yellow : colors.textMuted }}>
         {songCount} Songs ausgewählt
         {songCount < 8 ? ' · wähle mindestens 8 Songs' : songCount < needed ? ' · könnte knapp werden, das Spiel endet wenn die Songs ausgehen' : ''}
