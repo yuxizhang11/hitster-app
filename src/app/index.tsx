@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useIsFocused } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Equalizer } from '../components/Equalizer';
 import { Button, Card, P, Screen } from '../components/ui';
 import { useSpotify } from '../spotify/SpotifyContext';
+import { checkForUpdate, currentVersion } from '../update/checkUpdate';
 import { colors, gradients } from '../theme';
 
 const native = Platform.OS !== 'web';
@@ -15,6 +16,15 @@ export default function Home() {
   const float = useRef(new Animated.Value(0)).current;
   // Animationen nur laufen lassen, wenn der Startbildschirm sichtbar ist.
   const focused = useIsFocused();
+  const [newVersion, setNewVersion] = useState<string | null>(null);
+
+  // Beim Start still nach einer neuen Version auf GitHub schauen.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    checkForUpdate()
+      .then((info) => info.available && setNewVersion(info.latest))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!focused) return;
@@ -39,6 +49,19 @@ export default function Home() {
         </Animated.View>
         <Equalizer active={focused} colors={gradients.main} bars={13} />
       </View>
+
+      {newVersion && (
+        <Pressable onPress={() => router.push('/update')}>
+          <Card style={[styles.spotify, { borderColor: colors.green }]}>
+            <Ionicons name="sparkles" size={26} color={colors.green} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.spotifyTitle}>Update verfügbar: v{newVersion}</Text>
+              <P>Tippen zum Herunterladen</P>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </Card>
+        </Pressable>
+      )}
 
       <Button title="Neues Spiel" onPress={() => router.push('/setup')} icon={<Ionicons name="play" size={20} color="#fff" />} />
 
@@ -69,6 +92,9 @@ export default function Home() {
       </Pressable>
 
       <P style={{ textAlign: 'center', color: colors.textMuted }}>Ein Handy, das herumgereicht wird · 1 bis 8 Spieler</P>
+      <Pressable onPress={() => router.push('/update')} hitSlop={8} style={{ alignSelf: 'center' }}>
+        <Text style={{ color: colors.textMuted, fontWeight: '700' }}>Version v{currentVersion()} · Nach Updates suchen</Text>
+      </Pressable>
     </Screen>
   );
 }

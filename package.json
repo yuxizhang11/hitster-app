@@ -34,7 +34,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/game/*.test.ts"
+    "test": "node --test --experimental-strip-types src/game/*.test.ts src/update/*.test.ts"
   },
   "private": true
 }

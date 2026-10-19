@@ -39,6 +39,10 @@ Unter [Releases](https://github.com/yuxizhang11/hitster-app/releases) liegt die 
 Run workflow** (Version wie `v0.2.0` eingeben) oder automatisch, sobald ein Tag wie `v0.2.0` gepusht wird. Jeder Pull Request baut die APK ebenfalls,
 sie hängt dann als Artefakt am Actions-Lauf.
 
+Ab v0.3.0 sucht die App beim Start selbst nach einer neuen Release und zeigt dann oben einen Hinweis. Unter
+**Version · Nach Updates suchen** (unten auf dem Startbildschirm) lässt sich die neue APK direkt herunterladen. Dafür muss
+das Repo öffentlich sein. Die Versionsnummer der App kommt beim Bauen automatisch aus dem Release-Tag.
+
 ## Spotify einrichten (einmalig)
 
 Spotify erlaubt das Abspielen über fremde Apps nur mit **Premium**. Die Musik läuft über die Spotify-App auf dem Handy.
