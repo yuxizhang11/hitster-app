@@ -19,7 +19,8 @@ den Plattenteller, eine Animation startet und ein Song-Ausschnitt läuft über S
 | 📝 Zettel-Runde | Alle raten gleichzeitig auf Papier, Punkte zählt ihr selbst oder tippt sie in der App an |
 
 Kategorien: Pop-Hits, K-Pop, 80er, 90er, 2000er, 2010er, 2020er, Deutsch, Rock-Klassiker, plus eigene Spotify-Playlists.
-Die Songlisten stehen in `src/data/songs.ts` und lassen sich leicht erweitern.
+Jede Kategorie hat rund 200 Songs. In der App unter **Songlisten** lassen sich Songs ansehen, ausblenden und eigene
+hinzufügen. Die Listen selbst stehen in `src/data/songs.ts`.
 
 ## Starten
 
