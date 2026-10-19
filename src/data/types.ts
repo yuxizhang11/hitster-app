@@ -6,6 +6,8 @@ export type Song = {
   category: string;
   /** Spotify track URI, if already known (e.g. imported from a playlist). */
   uri?: string;
+  /** Länge in ms, falls bekannt. */
+  durationMs?: number;
 };
 
 export type Category = {

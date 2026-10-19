@@ -14,36 +14,47 @@ export default function ResultsScreen() {
   const { game, setup, startGame, setGame } = useGame();
 
   useEffect(() => {
-    if (!game) router.replace('/');
+    if (!game) router.dismissTo('/');
   }, [game]);
 
   if (!game) return null;
   const ranked = ranking(game);
   const top = winners(game);
   const cards = game.mode.end.kind === 'cards';
+  const manual = game.mode.group && game.scoring === 'manual';
   const colorOf = (id: string) => PLAYER_COLORS[game.players.findIndex((p) => p.id === id) % PLAYER_COLORS.length];
 
   return (
     <Screen>
       <Confetti />
-      <View style={{ alignItems: 'center', gap: 8, paddingTop: 30 }}>
-        <Text style={{ fontSize: 72 }}>🏆</Text>
-        <P>{top.length > 1 ? 'Unentschieden!' : game.players.length > 1 ? 'Gewonnen hat' : 'Dein Ergebnis'}</P>
-        <H1 style={{ textAlign: 'center', color: colorOf(top[0]?.id ?? '') }}>{top.map((p) => p.name).join(' & ')}</H1>
-      </View>
+      {manual ? (
+        <View style={{ alignItems: 'center', gap: 8, paddingTop: 30 }}>
+          <Text style={{ fontSize: 72 }}>📝</Text>
+          <H1 style={{ textAlign: 'center' }}>Alle Songs gespielt!</H1>
+          <P style={{ textAlign: 'center' }}>Zählt jetzt eure Zettel aus. Wer die meisten Punkte hat, gewinnt.</P>
+        </View>
+      ) : (
+        <>
+          <View style={{ alignItems: 'center', gap: 8, paddingTop: 30 }}>
+            <Text style={{ fontSize: 72 }}>🏆</Text>
+            <P>{top.length > 1 ? 'Unentschieden!' : game.players.length > 1 ? 'Gewonnen hat' : 'Dein Ergebnis'}</P>
+            <H1 style={{ textAlign: 'center', color: colorOf(top[0]?.id ?? '') }}>{top.map((p) => p.name).join(' & ')}</H1>
+          </View>
 
-      <View style={{ gap: 8 }}>
-        {ranked.map((p, i) => (
-          <Card key={p.id} style={[styles.row, i === 0 && { borderColor: colors.yellow }]}>
-            <Text style={styles.place}>{['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`}</Text>
-            <View style={[styles.dot, { backgroundColor: colorOf(p.id) }]} />
-            <Text style={styles.name}>{p.name}</Text>
-            <Text style={styles.score}>
-              {cards ? `${p.timeline.length} Karten` : `${p.score} ${p.score === 1 ? 'Punkt' : 'Punkte'}`}
-            </Text>
-          </Card>
-        ))}
-      </View>
+          <View style={{ gap: 8 }}>
+            {ranked.map((p, i) => (
+              <Card key={p.id} style={[styles.row, i === 0 && { borderColor: colors.yellow }]}>
+                <Text style={styles.place}>{['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`}</Text>
+                <View style={[styles.dot, { backgroundColor: colorOf(p.id) }]} />
+                <Text style={styles.name}>{p.name}</Text>
+                <Text style={styles.score}>
+                  {cards ? `${p.timeline.length} Karten` : `${p.score} ${p.score === 1 ? 'Punkt' : 'Punkte'}`}
+                </Text>
+              </Card>
+            ))}
+          </View>
+        </>
+      )}
 
       {cards && ranked[0] && (
         <Card style={{ gap: 6 }}>
@@ -59,8 +70,8 @@ export default function ResultsScreen() {
       <Button
         title="Nochmal spielen"
         onPress={() => {
-          startGame(setup);
-          router.replace('/game');
+          const next = startGame(setup);
+          router.replace(next.mode.group ? '/group' : '/game');
         }}
       />
       <Button
@@ -68,7 +79,6 @@ export default function ResultsScreen() {
         variant="ghost"
         onPress={() => {
           setGame(null);
-          router.replace('/');
         }}
       />
     </Screen>

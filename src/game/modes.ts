@@ -9,7 +9,8 @@ export type ModeId =
   | 'poker'
   | 'sudden'
   | 'party'
-  | 'profi';
+  | 'profi'
+  | 'zettel';
 
 export type EndRule =
   | { kind: 'cards'; target: number }
@@ -35,6 +36,8 @@ export type ModeDef = {
   replays: number;
   end: EndRule;
   colors: [string, string];
+  /** Alle spielen gleichzeitig mit einem Song pro Runde, statt das Handy herumzureichen. */
+  group?: boolean;
 };
 
 export const MODES: ModeDef[] = [
@@ -181,6 +184,25 @@ export const MODES: ModeDef[] = [
     replays: 2,
     end: { kind: 'rounds', rounds: 4 },
     colors: ['#FFCE00', '#FF4FD8'],
+  },
+  {
+    id: 'zettel',
+    name: 'Zettel-Runde',
+    emoji: '📝',
+    tagline: 'Alle raten gleichzeitig auf Papier',
+    rules: [
+      'Jeder braucht Zettel und Stift. Das Handy liegt in der Mitte.',
+      'Pro Runde läuft ein Song, alle schreiben Künstler, Titel und Jahr auf.',
+      'Danach wird aufgelöst. Punkte zählt ihr selbst oder tippt sie in der App an.',
+      'Vorschlag: 1 Punkt für Künstler, 1 für Titel, 1 für das Jahr (±2 Jahre).',
+    ],
+    questions: [],
+    snippetSeconds: 25,
+    startAt: 'middle',
+    replays: 2,
+    end: { kind: 'rounds', rounds: 10 },
+    colors: ['#2EE59D', '#00A3FF'],
+    group: true,
   },
 ];
 

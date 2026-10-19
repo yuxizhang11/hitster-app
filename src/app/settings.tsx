@@ -71,8 +71,10 @@ export default function SettingsScreen() {
             <Text style={styles.label}>Client-ID</Text>
             <TextInput
               value={clientId}
-              onChangeText={setClientId}
-              onBlur={() => spotify.setClientId(clientId)}
+              onChangeText={(t) => {
+                setClientId(t);
+                spotify.setClientId(t);
+              }}
               placeholder="z. B. 1a2b3c4d5e…"
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
@@ -82,11 +84,8 @@ export default function SettingsScreen() {
             <Button
               title={spotify.busy ? 'Verbinde…' : 'Mit Spotify verbinden'}
               gradient={['#1DB954', '#0B7A3E']}
-              disabled={!clientId.trim() || spotify.busy}
-              onPress={() => {
-                spotify.setClientId(clientId);
-                spotify.login();
-              }}
+              disabled={!clientId.trim() || !spotify.ready || spotify.busy}
+              onPress={spotify.login}
             />
           </>
         )}

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -13,8 +13,11 @@ const native = Platform.OS !== 'web';
 export default function Home() {
   const { connected, user } = useSpotify();
   const float = useRef(new Animated.Value(0)).current;
+  // Animationen nur laufen lassen, wenn der Startbildschirm sichtbar ist.
+  const focused = useIsFocused();
 
   useEffect(() => {
+    if (!focused) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(float, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: native }),
@@ -23,7 +26,7 @@ export default function Home() {
     );
     loop.start();
     return () => loop.stop();
-  }, [float]);
+  }, [float, focused]);
 
   return (
     <Screen>
@@ -34,7 +37,7 @@ export default function Home() {
           <Text style={styles.logo}>HITSTER</Text>
           <Text style={styles.logoSub}>Das Musik-Ratespiel</Text>
         </Animated.View>
-        <Equalizer active colors={gradients.main} bars={13} />
+        <Equalizer active={focused} colors={gradients.main} bars={13} />
       </View>
 
       <Button title="Neues Spiel" onPress={() => router.push('/setup')} icon={<Ionicons name="play" size={20} color="#fff" />} />

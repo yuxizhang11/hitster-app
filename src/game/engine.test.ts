@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import type { Song } from '../data/types';
 import type { ModeDef } from './modes';
 import {
-  answer, createGame, decadeLabel, endTurn, insertSorted, slotIsCorrect, startTurn, turnIsDone, winners, yearPoints,
+  answer, createGame, decadeLabel, endGroupRound, endTurn, givePoints, insertSorted, slotIsCorrect, startGroupRound, startTurn,
+  turnIsDone, winners, yearPoints,
 } from './engine.ts';
 
 let seed = 1;
@@ -90,4 +91,25 @@ test('speed und poker Punkte', () => {
   g = startTurn(createGame(poker, ['A'], songs, {}, rng), rng);
   g = answer(g, { kind: 'choice', value: `${g.turn!.song.title} – ${g.turn!.song.artist}` }, { pokerStage: 2 });
   assert.equal(g.players[0].score, 3);
+});
+
+test('Zettel-Runde: feste Songanzahl, Punkte per Hand', () => {
+  const mode: ModeDef = { ...base, id: 'zettel', questions: [], end: { kind: 'rounds', rounds: 10 }, group: true };
+  let g = createGame(mode, ['A', 'B', 'C'], songs, { target: 3, scoring: 'app' }, rng);
+  assert.equal(g.scoring, 'app');
+  const seen = new Set<string>();
+  for (let r = 0; r < 3; r++) {
+    assert.ok(!g.finished);
+    g = startGroupRound(g);
+    assert.ok(g.turn && !seen.has(g.turn.song.id));
+    seen.add(g.turn!.song.id);
+    if (r === 0) g = givePoints(givePoints(g, 1, 1), 1, 1);
+    if (r === 1) g = givePoints(g, 2, 1);
+    g = endGroupRound(g);
+  }
+  assert.ok(g.finished);
+  assert.deepEqual(g.players.map((p) => p.score), [0, 2, 1]);
+  assert.equal(givePoints(g, 0, -1).players[0].score, 0);
+  assert.deepEqual(winners(g).map((p) => p.name), ['B']);
+  assert.equal(createGame(mode, ['A'], songs, {}, rng).scoring, 'app');
 });

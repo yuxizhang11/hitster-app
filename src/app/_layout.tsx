@@ -17,6 +17,7 @@ export default function RootLayout() {
             <StatusBar style="light" />
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'fade' }}>
               <Stack.Screen name="game" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="group" options={{ gestureEnabled: false }} />
               <Stack.Screen name="results" options={{ gestureEnabled: false }} />
             </Stack>
           </GameProvider>

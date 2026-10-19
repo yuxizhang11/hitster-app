@@ -16,6 +16,7 @@ den Plattenteller, eine Animation startet und ein Song-Ausschnitt läuft über S
 | 💀 Sudden Death | Ein Fehler und du bist raus |
 | 🎉 Party-Mix | Jeder Zug eine zufällige Frage (Künstler, Titel, Jahr, Jahrzehnt) |
 | 🏆 Hitster Profi | Künstler, Titel und Jahr in einem Zug |
+| 📝 Zettel-Runde | Alle raten gleichzeitig auf Papier, Punkte zählt ihr selbst oder tippt sie in der App an |
 
 Kategorien: Pop-Hits, K-Pop, 80er, 90er, 2000er, 2010er, 2020er, Deutsch, Rock-Klassiker, plus eigene Spotify-Playlists.
 Die Songlisten stehen in `src/data/songs.ts` und lassen sich leicht erweitern.

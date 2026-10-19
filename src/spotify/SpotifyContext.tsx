@@ -10,7 +10,7 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getMe, GetToken, SpotifyUser } from './api';
+import { getMe, GetToken, SpotifyError, SpotifyUser } from './api';
 import { secureStorage } from './storage';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -39,10 +39,14 @@ type SpotifyContextValue = {
   connected: boolean;
   user: SpotifyUser | null;
   busy: boolean;
+  /** Login-Anfrage ist mit der aktuellen Client-ID vorbereitet. */
+  ready: boolean;
   error: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   getToken: GetToken;
+  /** Bei abgelaufenem oder widerrufenem Login aufrufen, damit die App sauber trennt. */
+  handleAuthError: (e: unknown) => void;
 };
 
 const SpotifyContext = createContext<SpotifyContextValue | null>(null);
@@ -115,6 +119,11 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         await saveToken(merged);
         return merged;
       })
+      .catch(async (e) => {
+        // Refresh-Token widerrufen oder ungültig: trennen statt endlos Fehler zu werfen.
+        if (tokenRef.current === current) await saveToken(null);
+        throw new SpotifyError('Spotify-Login abgelaufen. Bitte neu verbinden.', 'AUTH');
+      })
       .finally(() => {
         refreshing.current = null;
       });
@@ -128,8 +137,18 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     }
     getMe(getToken)
       .then((me) => setUser(me))
-      .catch((e) => setError(String(e.message ?? e)));
-  }, [token, getToken]);
+      .catch((e) => {
+        if (e instanceof SpotifyError && e.code === 'AUTH') saveToken(null);
+        setError(String(e.message ?? e));
+      });
+  }, [token, getToken, saveToken]);
+
+  const handleAuthError = useCallback(
+    (e: unknown) => {
+      if (e instanceof SpotifyError && e.code === 'AUTH') saveToken(null);
+    },
+    [saveToken],
+  );
 
   const login = useCallback(async () => {
     setError(null);
@@ -137,7 +156,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       setError('Bitte zuerst die Spotify Client-ID eintragen.');
       return;
     }
-    if (!request) return;
+    if (!request || request.clientId !== clientId) return;
     setBusy(true);
     try {
       const result = await promptAsync();
@@ -166,18 +185,12 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     await saveToken(null);
   }, [saveToken]);
 
-  const value: SpotifyContextValue = {
-    clientId,
-    setClientId,
-    redirectUri,
-    connected: !!token,
-    user,
-    busy,
-    error,
-    login,
-    logout,
-    getToken,
-  };
+  const connected = !!token;
+  const ready = !!clientId && !!request && request.clientId === clientId;
+  const value = useMemo<SpotifyContextValue>(
+    () => ({ clientId, setClientId, redirectUri, connected, user, busy, ready, error, login, logout, getToken, handleAuthError }),
+    [clientId, setClientId, redirectUri, connected, user, busy, ready, error, login, logout, getToken, handleAuthError],
+  );
 
   return <SpotifyContext.Provider value={value}>{children}</SpotifyContext.Provider>;
 }

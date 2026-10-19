@@ -50,9 +50,14 @@ export type GameState = {
   turn: Turn | null;
   totalTurns: number;
   finished: boolean;
+  /** Zettel-Runde: Punkte in der App vergeben oder selbst auf Papier zählen. */
+  scoring: Scoring;
 };
 
+export type Scoring = 'app' | 'manual';
+
 export type GameOptions = {
+  scoring?: Scoring;
   /** Überschreibt Zielkarten (Klassik) bzw. Runden pro Spieler. */
   target?: number;
 };
@@ -120,7 +125,16 @@ export function createGame(
       p.timeline = [starter];
     }
   }
-  return { mode: { ...mode, end }, players, pool, allSongs, turn: null, totalTurns: 0, finished: false };
+  return {
+    mode: { ...mode, end },
+    players,
+    pool,
+    allSongs,
+    turn: null,
+    totalTurns: 0,
+    finished: false,
+    scoring: options.scoring ?? 'app',
+  };
 }
 
 /** Index des nächsten Spielers, der noch im Spiel ist. */
@@ -314,6 +328,7 @@ export function isGameOver(state: GameState): boolean {
     case 'cards':
       return state.players.some((p) => p.timeline.length >= end.target);
     case 'rounds':
+      if (state.mode.group) return state.totalTurns >= end.rounds;
       return state.players.every((p) => p.turns >= end.rounds);
     case 'survival': {
       const alive = state.players.filter((p) => p.alive).length;
@@ -343,4 +358,26 @@ export function winners(state: GameState): Player[] {
         ? p.alive === top.alive && p.score === top.score
         : p.score === top.score;
   return ranked.filter(same);
+}
+
+// Zettel-Runde: Alle hören denselben Song und raten gleichzeitig auf Papier.
+
+export function startGroupRound(state: GameState): GameState {
+  if (state.finished) return state;
+  const [song, ...rest] = state.pool;
+  if (!song) return { ...state, finished: true, turn: null };
+  return { ...state, pool: rest, turn: { playerIndex: -1, song, questions: [], questionIndex: 0, results: [] } };
+}
+
+/** Punkte für einen Spieler ändern, nie unter 0. */
+export function givePoints(state: GameState, playerIndex: number, delta: number): GameState {
+  return {
+    ...state,
+    players: state.players.map((p, i) => (i === playerIndex ? { ...p, score: Math.max(0, p.score + delta) } : p)),
+  };
+}
+
+export function endGroupRound(state: GameState): GameState {
+  const next = { ...state, totalTurns: state.totalTurns + 1 };
+  return { ...next, finished: isGameOver(next) };
 }
