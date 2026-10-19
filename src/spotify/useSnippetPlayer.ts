@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Song } from '../data/types';
-import { pause, pickDevice, play, resolveTrack, SpotifyError } from './api';
+import { Device, pause, pickDevice, play, resolveTrack, SpotifyError } from './api';
 import { useSpotify } from './SpotifyContext';
 
 export type PlayerStatus = 'idle' | 'loading' | 'playing' | 'error';
@@ -15,7 +15,7 @@ export function useSnippetPlayer() {
   const [status, setStatus] = useState<PlayerStatus>('idle');
   const [error, setError] = useState<SpotifyError | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const deviceId = useRef<string | null>(null);
+  const device = useRef<Device | null>(null);
   const startPositions = useRef(new Map<string, number>());
   const finish = useRef<(() => void) | null>(null);
   /** Zählt Wiedergaben hoch, damit ein abgelöstes Snippet nicht das neue pausiert. */
@@ -35,7 +35,7 @@ export function useSnippetPlayer() {
     clearTimer();
     setStatus('idle');
     setError(null);
-    if (connected) await pause(getToken, deviceId.current ?? undefined).catch(() => {});
+    if (connected) await pause(getToken, device.current?.id).catch(() => {});
   }, [connected, getToken]);
 
   /** Spielt `seconds` Sekunden des Songs. Die Startposition bleibt pro Song gleich, auch beim Nochmal-Hören. */
@@ -56,20 +56,22 @@ export function useSnippetPlayer() {
                 : Math.min(track.durationMs * (0.25 + Math.random() * 0.3), track.durationMs - seconds * 1000 - 2000);
             startPositions.current.set(song.id, Math.max(0, position));
           }
-          deviceId.current ??= await pickDevice(getToken);
+          device.current ??= await pickDevice(getToken);
           try {
-            await play(getToken, deviceId.current, track.uri, position);
+            await play(getToken, device.current, track.uri, position);
           } catch (e) {
             // Gerät könnte inzwischen weg sein: einmal neu suchen.
             if (e instanceof SpotifyError && e.code === 'NO_DEVICE') {
-              deviceId.current = await pickDevice(getToken);
-              await play(getToken, deviceId.current, track.uri, position);
+              device.current = await pickDevice(getToken);
+              await play(getToken, device.current, track.uri, position);
             } else throw e;
           }
+          // Ab jetzt ist das Gerät aktiv, spätere Snippets brauchen keinen Wechsel mehr.
+          device.current = { ...device.current, is_active: true };
         }
         if (gen !== generation.current) {
           // Während des Ladens wurde gestoppt: Musik gleich wieder aus.
-          if (connected && stoppedAt.current === generation.current) await pause(getToken, deviceId.current ?? undefined);
+          if (connected && stoppedAt.current === generation.current) await pause(getToken, device.current?.id);
           return false;
         }
         setStatus('playing');
@@ -79,12 +81,12 @@ export function useSnippetPlayer() {
         });
         if (gen !== generation.current) return false;
         finish.current = null;
-        if (connected) await pause(getToken, deviceId.current ?? undefined);
+        if (connected) await pause(getToken, device.current?.id);
         setStatus('idle');
         return true;
       } catch (e) {
         if (gen !== generation.current) return false;
-        deviceId.current = null;
+        device.current = null;
         handleAuthError(e);
         setError(e instanceof SpotifyError ? e : new SpotifyError(String((e as Error)?.message ?? e), 'OTHER'));
         setStatus('error');
