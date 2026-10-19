@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ExpoDevice from 'expo-device';
 
 import type { Song } from '../data/types';
 
@@ -34,6 +35,9 @@ async function call<T>(getToken: GetToken, path: string, init: RequestInit = {})
       throw new SpotifyError('Für die Wiedergabe brauchst du Spotify Premium.', 'PREMIUM_REQUIRED');
     if (reason === 'NO_ACTIVE_DEVICE' || (res.status === 404 && /device/i.test(message)))
       throw new SpotifyError('Kein aktives Spotify-Gerät gefunden.', 'NO_DEVICE');
+    // 502/503 beim Abspielen heißt: Das Gerät ist nicht erreichbar (z. B. ein ausgeschalteter Rechner).
+    if (res.status >= 500 && path.startsWith('/me/player'))
+      throw new SpotifyError('Das Spotify-Gerät ist gerade nicht erreichbar.', 'NO_DEVICE');
     throw new SpotifyError(message, 'OTHER');
   }
   return body as T;
@@ -61,17 +65,31 @@ export async function listDevices(getToken: GetToken): Promise<Device[]> {
 
 const isPhone = (d: Device) => d.type.toLowerCase() === 'smartphone';
 
+const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Spotify nennt das Handy meist so wie in den Android-Einstellungen („Gerätename“) oder nach dem Modell. */
+function isThisPhone(d: Device): boolean {
+  const name = norm(d.name);
+  const own = [ExpoDevice.deviceName, ExpoDevice.modelName].map(norm).filter((n) => n.length > 2);
+  return own.some((n) => name === n || name.includes(n) || n.includes(name));
+}
+
 /**
- * Wählt bevorzugt ein Smartphone (also dieses Handy mit der Spotify-App), erst danach andere aktive Geräte.
- * Sonst landet die Musik z. B. auf einem Laptop oder Lautsprecher, der gerade noch aktiv ist.
+ * Wählt das Handy, auf dem das Spiel läuft (bzw. ein Smartphone mit der Spotify-App). Rechner oder Lautsprecher, die noch bei
+ * Spotify angemeldet sind, werden nie genommen, damit die Musik nicht woanders landet.
  */
 export async function pickDevice(getToken: GetToken): Promise<Device> {
   const devices = await listDevices(getToken);
-  const device =
-    devices.find((d) => isPhone(d) && d.is_active) ?? devices.find(isPhone) ?? devices.find((d) => d.is_active) ?? devices[0];
+  // Zuerst genau dieses Handy, dann irgendein Handy. Nie Rechner oder Lautsprecher.
+  const phones = devices.filter(isPhone);
+  const device = phones.find(isThisPhone) ?? phones.find((d) => d.is_active) ?? phones[0];
   if (!device) {
+    const others = devices.map((d) => `„${d.name}“`).join(', ');
     throw new SpotifyError(
-      'Kein Spotify-Gerät gefunden. Öffne kurz die Spotify-App auf diesem Handy und komm dann zurück.',
+      (others
+        ? `Spotify ist gerade nur auf ${others} offen, nicht auf diesem Handy. `
+        : 'Spotify läuft auf diesem Handy gerade nicht. ') +
+        'Tippe auf „Spotify öffnen“, starte dort kurz einen Song und komm dann zurück.',
       'NO_DEVICE',
     );
   }
@@ -260,9 +278,6 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
     });
     if (!devices.length) return steps;
     const device = await pickDevice(getToken);
-    if (device.type.toLowerCase() !== 'smartphone') {
-      steps.push({ ok: false, text: `Kein Handy in der Liste, die Musik käme auf „${device.name}“` });
-    }
     const track = await resolveTrack(getToken, {
       id: 'test:mr-brightside',
       title: 'Mr. Brightside',
