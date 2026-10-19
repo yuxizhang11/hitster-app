@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button, Card, H1, H2, P, Screen } from '../components/ui';
-import { dedupeSongs } from '../game/engine';
+import { dedupeSongs, Scoring } from '../game/engine';
 import { getMode, ModeId, MODES } from '../game/modes';
 import { useGame } from '../state/GameContext';
 import { colors, PLAYER_COLORS } from '../theme';
@@ -13,34 +13,40 @@ import { colors, PLAYER_COLORS } from '../theme';
 const MAX_PLAYERS = 8;
 
 export default function SetupScreen() {
-  const { setup, startGame, categories } = useGame();
+  const { setup, loaded, startGame, categories } = useGame();
   const [players, setPlayers] = useState(setup.players);
   const [modeId, setModeId] = useState<ModeId>(setup.modeId);
   const [categoryIds, setCategoryIds] = useState(setup.categoryIds);
   const [target, setTarget] = useState<number | undefined>(setup.target);
+  const [scoring, setScoring] = useState<Scoring>(setup.scoring ?? 'app');
 
-  // Gespeichertes Setup kann nach dem ersten Rendern geladen werden.
+  // Gespeichertes Setup kann nach dem ersten Rendern geladen werden: einmal übernehmen, danach nicht mehr überschreiben.
   useEffect(() => {
+    if (!loaded) return;
     setPlayers(setup.players);
     setModeId(setup.modeId);
     setCategoryIds(setup.categoryIds);
     setTarget(setup.target);
-  }, [setup]);
+    setScoring(setup.scoring ?? 'app');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   const mode = getMode(modeId);
   const defaultTarget = mode.end.kind === 'cards' ? mode.end.target : mode.end.kind === 'rounds' ? mode.end.rounds : undefined;
   const effectiveTarget = target ?? defaultTarget;
   const songCount = dedupeSongs(categories.filter((c) => categoryIds.includes(c.id)).flatMap((c) => c.songs)).length;
   const names = players.map((p) => p.trim()).filter(Boolean);
-  const needed = Math.max(8, names.length * (effectiveTarget ?? 3) + names.length);
+  const needed = mode.group
+    ? Math.max(8, effectiveTarget ?? 10)
+    : Math.max(8, names.length * (effectiveTarget ?? 3) + names.length);
   const canStart = names.length > 0 && categoryIds.length > 0 && songCount >= 8;
 
   const toggleCategory = (id: string) =>
     setCategoryIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   const start = () => {
-    startGame({ players: names, modeId, categoryIds, target: target === defaultTarget ? undefined : target });
-    router.replace('/game');
+    startGame({ players: names, modeId, categoryIds, target: target === defaultTarget ? undefined : target, scoring });
+    router.replace(mode.group ? '/group' : '/game');
   };
 
   return (
@@ -119,7 +125,7 @@ export default function SetupScreen() {
         ))}
         {effectiveTarget !== undefined && (
           <View style={styles.targetRow}>
-            <Text style={styles.targetLabel}>{mode.end.kind === 'cards' ? 'Karten zum Sieg' : 'Runden pro Spieler'}</Text>
+            <Text style={styles.targetLabel}>{mode.end.kind === 'cards' ? 'Karten zum Sieg' : mode.group ? 'Anzahl Songs' : 'Runden pro Spieler'}</Text>
             <View style={styles.stepper}>
               <Pressable onPress={() => setTarget(Math.max(1, effectiveTarget - 1))} hitSlop={8}>
                 <Ionicons name="remove-circle" size={30} color={colors.pink} />
@@ -129,6 +135,32 @@ export default function SetupScreen() {
                 <Ionicons name="add-circle" size={30} color={colors.pink} />
               </Pressable>
             </View>
+          </View>
+        )}
+        {mode.group && (
+          <View style={{ gap: 8, marginTop: 12 }}>
+            <Text style={styles.targetLabel}>Punkte zählen</Text>
+            <View style={styles.segment}>
+              {(
+                [
+                  ['app', 'In der App'],
+                  ['manual', 'Selbst auf dem Zettel'],
+                ] as const
+              ).map(([value, label]) => (
+                <Pressable
+                  key={value}
+                  onPress={() => setScoring(value)}
+                  style={[styles.segmentItem, scoring === value && { backgroundColor: colors.pink }]}
+                >
+                  <Text style={[styles.segmentText, scoring === value && { color: '#fff' }]}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <P style={{ fontSize: 13 }}>
+              {scoring === 'app'
+                ? 'Nach jedem Song tippt ihr an, wer wie viele Punkte bekommt.'
+                : 'Die App spielt nur die Songs und löst auf, ihr zählt selbst.'}
+            </P>
           </View>
         )}
       </Card>
@@ -159,6 +191,9 @@ export default function SetupScreen() {
           </View>
         </Pressable>
       </View>
+      <Pressable onPress={() => router.push('/songs')} hitSlop={6}>
+        <Text style={{ color: colors.cyan, fontWeight: '700' }}>Songlisten ansehen und bearbeiten ›</Text>
+      </Pressable>
       <P style={{ color: songCount < needed ? colors.yellow : colors.textMuted }}>
         {songCount} Songs ausgewählt
         {songCount < 8 ? ' · wähle mindestens 8 Songs' : songCount < needed ? ' · könnte knapp werden, das Spiel endet wenn die Songs ausgehen' : ''}
@@ -196,6 +231,9 @@ const styles = StyleSheet.create({
   targetLabel: { color: colors.text, fontWeight: '700', fontSize: 15 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   targetValue: { color: colors.text, fontSize: 22, fontWeight: '900', minWidth: 28, textAlign: 'center' },
+  segment: { flexDirection: 'row', backgroundColor: colors.bgSoft, borderRadius: 14, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  segmentText: { color: colors.textDim, fontWeight: '700', fontSize: 14 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 100, paddingVertical: 10, paddingHorizontal: 14 },
   chipText: { color: colors.text, fontWeight: '700', fontSize: 15 },

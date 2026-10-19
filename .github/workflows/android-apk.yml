@@ -40,6 +40,14 @@ jobs:
           npm run typecheck
           npm test
 
+      # Versionsnummer aus dem Release-Tag in die App schreiben, damit die Update-Prüfung sie vergleichen kann.
+      - name: Version setzen
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
+        run: |
+          VERSION="${{ inputs.version || github.ref_name }}"
+          node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json'));a.expo.version=process.argv[1].replace(/^v/,'');a.expo.android={...a.expo.android,versionCode:Number(process.argv[2])};fs.writeFileSync('app.json',JSON.stringify(a,null,2))" "$VERSION" "${{ github.run_number }}"
+          grep -A1 '"version"' app.json
+
       - name: Android-Projekt erzeugen
         run: npx expo prebuild --platform android --no-install
 

@@ -77,7 +77,7 @@ type SearchTrack = { uri: string; duration_ms: number; name: string; artists: { 
 
 /** Findet den Spotify-Track zu einem Song aus unseren Listen (mit Cache). */
 export async function resolveTrack(getToken: GetToken, song: Song): Promise<{ uri: string; durationMs: number }> {
-  if (song.uri) return { uri: song.uri, durationMs: 180_000 };
+  if (song.uri) return { uri: song.uri, durationMs: song.durationMs ?? 180_000 };
   const cache = await loadCache();
   const cached = cache[song.id];
   if (cached) return cached;
@@ -126,6 +126,7 @@ type PlaylistTrack = {
   type?: string;
   uri: string;
   name: string;
+  duration_ms?: number;
   artists: { name: string }[];
   album: { release_date: string };
 };
@@ -161,6 +162,7 @@ export async function loadPlaylist(getToken: GetToken, playlistId: string): Prom
             year,
             category: `playlist:${playlistId}`,
             uri: t.uri,
+            durationMs: t.duration_ms,
           });
         }
         if (!page?.next) break;

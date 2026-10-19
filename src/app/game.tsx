@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, usePreventRemove } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -39,16 +39,38 @@ export default function GameScreen() {
   const [pokerStage, setPokerStage] = useState(0);
   const [intro, setIntro] = useState(false);
   const [confirmQuit, setConfirmQuit] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
   const questionStart = useRef(0);
+  const mounted = useRef(true);
 
   // Musik aus, wenn der Screen verlassen wird.
   const stopRef = useRef(player.stop);
   stopRef.current = player.stop;
-  useEffect(() => () => void stopRef.current(), []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      void stopRef.current();
+    };
+  }, []);
+
+  // Zurück-Taste (Android) fragt erst nach, statt das Spiel stillschweigend abzubrechen.
+  const allowLeave = usePreventRemove(true, () => setConfirmQuit(true));
 
   useEffect(() => {
-    if (!game) router.replace('/');
-  }, [game]);
+    if (!game) {
+      allowLeave();
+      router.dismissTo('/');
+    }
+  }, [game, allowLeave]);
+
+  // Die Uhr läuft erst, wenn der Song wirklich spielt, nicht schon während Spotify lädt.
+  useEffect(() => {
+    if (player.status === 'playing' && !audioReady) {
+      setAudioReady(true);
+      questionStart.current = Date.now();
+    }
+  }, [player.status, audioReady]);
 
   const medianYear = useMemo(() => {
     if (!game) return 2000;
@@ -77,11 +99,13 @@ export default function GameScreen() {
     const next = startTurn(game);
     if (next.finished) {
       setGame(next);
+      allowLeave();
       router.replace('/results');
       return;
     }
     setGame(next);
     setHasPlayed(false);
+    setAudioReady(false);
     setReplaysLeft(mode.replays);
     setPokerStage(0);
     setPhase('listen');
@@ -93,6 +117,7 @@ export default function GameScreen() {
     if (!turn) return;
     setIntro(true);
     await new Promise((r) => setTimeout(r, INTRO_MS));
+    if (!mounted.current) return;
     setIntro(false);
     const started = player.playSnippet(turn.song, seconds, mode.startAt);
     if (!hasPlayed) {
@@ -143,14 +168,16 @@ export default function GameScreen() {
     player.stop();
     const next = endTurn(game);
     setGame(next);
-    if (next.finished) router.replace('/results');
-    else setPhase('handoff');
+    if (next.finished) {
+      allowLeave();
+      router.replace('/results');
+    } else setPhase('handoff');
   };
 
   const quit = () => {
     player.stop();
+    allowLeave();
     setGame(null);
-    router.replace('/');
   };
 
   const orbState = intro ? 'loading' : player.status === 'loading' ? 'loading' : player.status === 'playing' ? 'playing' : !hasPlayed || replaysLeft > 0 ? 'idle' : 'disabled';
@@ -229,7 +256,7 @@ export default function GameScreen() {
             </Card>
           )}
 
-          {hasPlayed && question && (
+          {hasPlayed && question && (!mode.timeLimitSeconds || audioReady) && (
             <View style={{ gap: 12 }}>
               {turn.questions.length > 1 && (
                 <Text style={styles.qCounter}>
@@ -250,7 +277,7 @@ export default function GameScreen() {
                   title={`Mehr hören: ${pokerStages[pokerStage + 1]} s (−1 Punkt)`}
                   variant="ghost"
                   onPress={morePoker}
-                  disabled={player.status === 'playing' || intro}
+                  disabled={intro || player.status === 'loading' || player.status === 'playing'}
                 />
               )}
               {pokerStages && <Text style={styles.pokerPts}>Jetzt richtig = {Math.max(1, 5 - pokerStage)} Punkte</Text>}

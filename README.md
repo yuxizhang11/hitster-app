@@ -16,9 +16,11 @@ den Plattenteller, eine Animation startet und ein Song-Ausschnitt läuft über S
 | 💀 Sudden Death | Ein Fehler und du bist raus |
 | 🎉 Party-Mix | Jeder Zug eine zufällige Frage (Künstler, Titel, Jahr, Jahrzehnt) |
 | 🏆 Hitster Profi | Künstler, Titel und Jahr in einem Zug |
+| 📝 Zettel-Runde | Alle raten gleichzeitig auf Papier, Punkte zählt ihr selbst oder tippt sie in der App an |
 
 Kategorien: Pop-Hits, K-Pop, 80er, 90er, 2000er, 2010er, 2020er, Deutsch, Rock-Klassiker, plus eigene Spotify-Playlists.
-Die Songlisten stehen in `src/data/songs.ts` und lassen sich leicht erweitern.
+Jede Kategorie hat rund 200 Songs. In der App unter **Songlisten** lassen sich Songs ansehen, ausblenden und eigene
+hinzufügen. Die Listen selbst stehen in `src/data/songs.ts`.
 
 ## Starten
 
@@ -36,6 +38,10 @@ Unter [Releases](https://github.com/yuxizhang11/hitster-app/releases) liegt die 
 öffnen und „Installation aus unbekannten Quellen“ erlauben. Eine neue Release entsteht unter **Actions → Android APK →
 Run workflow** (Version wie `v0.2.0` eingeben) oder automatisch, sobald ein Tag wie `v0.2.0` gepusht wird. Jeder Pull Request baut die APK ebenfalls,
 sie hängt dann als Artefakt am Actions-Lauf.
+
+Ab v0.3.0 sucht die App beim Start selbst nach einer neuen Release und zeigt dann oben einen Hinweis. Unter
+**Version · Nach Updates suchen** (unten auf dem Startbildschirm) lässt sich die neue APK direkt herunterladen. Dafür muss
+das Repo öffentlich sein. Die Versionsnummer der App kommt beim Bauen automatisch aus dem Release-Tag.
 
 ## Spotify einrichten (einmalig)
 

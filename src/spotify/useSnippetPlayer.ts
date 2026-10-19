@@ -11,7 +11,7 @@ export type PlayerStatus = 'idle' | 'loading' | 'playing' | 'error';
  * Ohne Spotify-Verbindung läuft ein stummer Demo-Modus, damit man die App trotzdem ausprobieren kann.
  */
 export function useSnippetPlayer() {
-  const { connected, getToken } = useSpotify();
+  const { connected, getToken, handleAuthError } = useSpotify();
   const [status, setStatus] = useState<PlayerStatus>('idle');
   const [error, setError] = useState<SpotifyError | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,7 +34,8 @@ export function useSnippetPlayer() {
     stoppedAt.current = ++generation.current;
     clearTimer();
     setStatus('idle');
-    if (connected) await pause(getToken, deviceId.current ?? undefined);
+    setError(null);
+    if (connected) await pause(getToken, deviceId.current ?? undefined).catch(() => {});
   }, [connected, getToken]);
 
   /** Spielt `seconds` Sekunden des Songs. Die Startposition bleibt pro Song gleich, auch beim Nochmal-Hören. */
@@ -84,12 +85,13 @@ export function useSnippetPlayer() {
       } catch (e) {
         if (gen !== generation.current) return false;
         deviceId.current = null;
+        handleAuthError(e);
         setError(e instanceof SpotifyError ? e : new SpotifyError(String((e as Error)?.message ?? e), 'OTHER'));
         setStatus('error');
         return false;
       }
     },
-    [connected, getToken],
+    [connected, getToken, handleAuthError],
   );
 
   useEffect(() => () => clearTimer(), []);
