@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button, Card, H1, H2, P, Screen } from '../components/ui';
-import { loadPlaylist, parsePlaylistId } from '../spotify/api';
+import { diagnosePlayback, DiagnoseStep, loadPlaylist, parsePlaylistId } from '../spotify/api';
 import { useSpotify } from '../spotify/SpotifyContext';
 import { useGame } from '../state/GameContext';
 import { colors } from '../theme';
@@ -16,6 +16,18 @@ export default function SettingsScreen() {
   const [playlist, setPlaylist] = useState('');
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testSteps, setTestSteps] = useState<DiagnoseStep[] | null>(null);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTestSteps(null);
+    try {
+      setTestSteps(await diagnosePlayback(spotify.getToken));
+    } finally {
+      setTesting(false);
+    }
+  };
   const custom = categories.filter((c) => c.id.startsWith('playlist:'));
 
   const importPlaylist = async () => {
@@ -60,6 +72,19 @@ export default function SettingsScreen() {
                 Dein Konto ist nicht Premium. Spotify erlaubt das Abspielen über Apps nur mit Premium.
               </P>
             )}
+            <Button
+              title={testing ? 'Teste…' : 'Wiedergabe testen'}
+              variant="ghost"
+              onPress={runTest}
+              disabled={testing}
+              icon={testing ? <ActivityIndicator color={colors.textDim} /> : <Ionicons name="volume-high" size={18} color={colors.textDim} />}
+            />
+            {testSteps?.map((step, i) => (
+              <View key={i} style={styles.status}>
+                <Ionicons name={step.ok ? 'checkmark-circle' : 'alert-circle'} size={20} color={step.ok ? colors.green : colors.yellow} />
+                <P style={{ flex: 1, color: colors.text }}>{step.text}</P>
+              </View>
+            ))}
             <Button title="Trennen" variant="ghost" onPress={spotify.logout} />
           </>
         ) : (

@@ -176,7 +176,7 @@ export default function GroupScreen() {
           {player.error && (
             <Card style={{ borderColor: colors.red, gap: 10, alignSelf: 'stretch' }}>
               <P style={{ color: colors.text }}>{player.error.message}</P>
-              {player.error.code === 'NO_DEVICE' && (
+              {(player.error.code === 'NO_DEVICE' || player.error.code === 'NOT_PLAYING') && (
                 <Button title="Spotify öffnen" variant="ghost" onPress={() => Linking.openURL('spotify:').catch(() => {})} />
               )}
               <Button title="Nochmal versuchen" variant="ghost" onPress={() => play()} />

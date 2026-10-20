@@ -9,6 +9,7 @@
     "expo-auth-session": "~58.0.13",
     "expo-constants": "~58.0.12",
     "expo-crypto": "~58.0.7",
+    "expo-device": "~58.0.5",
     "expo-haptics": "~58.0.7",
     "expo-linear-gradient": "~58.0.3",
     "expo-linking": "~58.0.13",
