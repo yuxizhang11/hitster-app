@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View
 
 import { Button, Card, H1, P, Screen } from '../components/ui';
 import { checkForUpdate, currentVersion, RELEASES_URL, UpdateError, UpdateInfo } from '../update/checkUpdate';
+import { downloadAndInstall } from '../update/installUpdate';
 import { colors } from '../theme';
 
 /** Zeigt die installierte Version und lädt bei Bedarf die neue APK von GitHub. */
@@ -12,6 +13,9 @@ export default function UpdateScreen() {
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  /** Download-Fortschritt 0..1, null wenn gerade nichts geladen wird. */
+  const [progress, setProgress] = useState<number | null>(null);
+  const [installError, setInstallError] = useState<string | null>(null);
 
   const check = async () => {
     setChecking(true);
@@ -29,9 +33,21 @@ export default function UpdateScreen() {
     check();
   }, []);
 
-  const download = () => {
+  const download = async () => {
     if (!info) return;
-    Linking.openURL(info.apkUrl ?? info.pageUrl).catch(() => {});
+    if (!info.apkUrl) {
+      Linking.openURL(info.pageUrl).catch(() => {});
+      return;
+    }
+    setInstallError(null);
+    setProgress(0);
+    try {
+      await downloadAndInstall(info.apkUrl, info.latest, setProgress);
+    } catch {
+      setInstallError('Direkt installieren hat nicht geklappt. Du kannst die APK stattdessen im Browser laden.');
+    } finally {
+      setProgress(null);
+    }
   };
 
   return (
@@ -75,11 +91,31 @@ export default function UpdateScreen() {
             )}
             {Platform.OS === 'android' ? (
               <>
-                <Button title={`v${info.latest} herunterladen`} onPress={download} />
+                <Button
+                  title={progress !== null ? `Lädt… ${Math.round(progress * 100)} %` : `Auf v${info.latest} aktualisieren`}
+                  onPress={download}
+                  disabled={progress !== null}
+                />
+                {progress !== null && (
+                  <View style={styles.bar}>
+                    <View style={[styles.barFill, { width: `${Math.round(progress * 100)}%` }]} />
+                  </View>
+                )}
                 <P style={{ fontSize: 13 }}>
-                  Nach dem Download die Datei öffnen und installieren. Deine Einstellungen und Songlisten bleiben erhalten.
-                  Beim ersten Mal fragt Android, ob der Browser Apps installieren darf.
+                  Die App lädt das Update und öffnet gleich danach die Installation, dort nur noch auf „Installieren“ tippen.
+                  Beim ersten Mal fragt Android einmalig, ob Hitster Apps installieren darf. Einstellungen und Songlisten
+                  bleiben erhalten.
                 </P>
+                {installError && (
+                  <>
+                    <P style={{ color: colors.yellow }}>{installError}</P>
+                    <Button
+                      title="Im Browser herunterladen"
+                      variant="ghost"
+                      onPress={() => Linking.openURL(info.apkUrl ?? info.pageUrl).catch(() => {})}
+                    />
+                  </>
+                )}
               </>
             ) : (
               <Button title="Release-Seite öffnen" variant="ghost" onPress={() => Linking.openURL(info.pageUrl).catch(() => {})} />
@@ -104,4 +140,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   status: { color: colors.text, fontWeight: '800', fontSize: 16 },
   notes: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
+  bar: { height: 8, borderRadius: 4, backgroundColor: colors.bgSoft, overflow: 'hidden' },
+  barFill: { height: 8, borderRadius: 4, backgroundColor: colors.green },
 });
