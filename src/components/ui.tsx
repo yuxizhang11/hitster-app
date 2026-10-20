@@ -76,8 +76,12 @@ export function H2({ children, style }: { children: ReactNode; style?: StyleProp
   return <Text style={[styles.h2, style]}>{children}</Text>;
 }
 
-export function P({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[styles.p, style]}>{children}</Text>;
+export function P({ children, style, selectable }: { children: ReactNode; style?: StyleProp<TextStyle>; selectable?: boolean }) {
+  return (
+    <Text style={[styles.p, style]} selectable={selectable}>
+      {children}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({

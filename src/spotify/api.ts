@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ExpoDevice from 'expo-device';
 
 import type { Song } from '../data/types';
+import { remoteAvailable, remoteConnect, remotePause, remotePlay } from './remote';
 
 const API = 'https://api.spotify.com/v1';
 // v2: Suche jetzt mit market=from_token, alte Treffer waren evtl. im eigenen Land nicht abspielbar.
@@ -266,7 +267,10 @@ export async function loadPlaylist(getToken: GetToken, playlistId: string): Prom
 export type DiagnoseStep = { ok: boolean; text: string };
 
 /** Prüft Schritt für Schritt, ob Spotify auf diesem Handy abspielen kann, und spielt kurz einen Testsong. */
-export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep[]> {
+export async function diagnosePlayback(
+  getToken: GetToken,
+  remote?: { clientId: string; redirectUri: string },
+): Promise<DiagnoseStep[]> {
   const steps: DiagnoseStep[] = [];
   try {
     const me = await getMe(getToken);
@@ -278,6 +282,7 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
         : `Konto „${me?.product ?? '?'}“: Abspielen geht nur mit Premium`,
     });
     if (!premium) return steps;
+    if (remote && remoteAvailable()) return [...steps, ...(await diagnoseRemote(getToken, remote))];
     const devices = await listDevices(getToken);
     steps.push({
       ok: devices.length > 0,
@@ -287,13 +292,7 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
     });
     if (!devices.length) return steps;
     const device = await pickDevice(getToken);
-    const track = await resolveTrack(getToken, {
-      id: 'test:mr-brightside',
-      title: 'Mr. Brightside',
-      artist: 'The Killers',
-      year: 2004,
-      category: 'test',
-    });
+    const track = await resolveTrack(getToken, TEST_SONG);
     const result = await play(getToken, device, track.uri, 30_000);
     const st = result.state;
     steps.push({
@@ -308,6 +307,32 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
     });
     await wait(4000);
     await pause(getToken, device.id);
+  } catch (e) {
+    steps.push({ ok: false, text: e instanceof Error ? e.message : String(e) });
+  }
+  return steps;
+}
+
+const TEST_SONG: Song = { id: 'test:mr-brightside', title: 'Mr. Brightside', artist: 'The Killers', year: 2004, category: 'test' };
+
+/** Test über die direkte Verbindung zur Spotify-App (Android). */
+async function diagnoseRemote(getToken: GetToken, remote: { clientId: string; redirectUri: string }): Promise<DiagnoseStep[]> {
+  const steps: DiagnoseStep[] = [];
+  try {
+    await remoteConnect(remote.clientId, remote.redirectUri);
+    steps.push({ ok: true, text: 'Direkt mit der Spotify-App auf diesem Handy verbunden' });
+  } catch (e) {
+    steps.push({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    return steps;
+  }
+  try {
+    const track = await resolveTrack(getToken, TEST_SONG);
+    const ok = await remotePlay(remote.clientId, remote.redirectUri, track.uri, 30_000);
+    steps.push({ ok, text: ok ? 'Testsong läuft über die Spotify-App' : 'Spotify hat den Testsong nicht gestartet' });
+    if (ok) {
+      await wait(4000);
+      await remotePause();
+    }
   } catch (e) {
     steps.push({ ok: false, text: e instanceof Error ? e.message : String(e) });
   }

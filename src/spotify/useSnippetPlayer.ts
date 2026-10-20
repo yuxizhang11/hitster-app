@@ -4,6 +4,7 @@ import { findPreview, playPreview, PREVIEW_SECONDS, stopPreview } from '../audio
 import { getMusicSource } from '../audio/source';
 import type { Song } from '../data/types';
 import { Device, pause, pickDevice, play, resolveTrack, SpotifyError } from './api';
+import { remoteAvailable, remotePause, remotePlay } from './remote';
 import { useSpotify } from './SpotifyContext';
 
 export type PlayerStatus = 'idle' | 'loading' | 'playing' | 'error';
@@ -16,16 +17,26 @@ export type PlaybackSource = 'spotify' | 'preview';
  */
 let spotifyUnreliable = false;
 let wasConnected = false;
+/** Warum Spotify zuletzt nicht gespielt hat, für den Hinweis im Spiel. */
+let lastSpotifyError: string | null = null;
+
+/** Nach einem erfolgreichen Test in den Einstellungen Spotify wieder versuchen. */
+export function retrySpotify() {
+  spotifyUnreliable = false;
+  lastSpotifyError = null;
+}
 
 /**
  * Spielt kurze Ausschnitte. Mit Spotify-Verbindung über die Spotify-App auf dem Handy,
  * sonst (oder wenn Spotify nicht startet) als 30-Sekunden-Vorschau direkt in der App.
  */
 export function useSnippetPlayer() {
-  const { connected, getToken, handleAuthError } = useSpotify();
+  const { connected, getToken, handleAuthError, clientId, redirectUri } = useSpotify();
   const [status, setStatus] = useState<PlayerStatus>('idle');
   const [error, setError] = useState<SpotifyError | null>(null);
   const [source, setSource] = useState<PlaybackSource | null>(null);
+  /** Gesetzt, wenn Spotify gewünscht war, aber der Ausschnitt einspringen musste. */
+  const [fallbackNote, setFallbackNote] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const device = useRef<Device | null>(null);
   const startPositions = useRef(new Map<string, number>());
@@ -46,7 +57,10 @@ export function useSnippetPlayer() {
     const was = active.current;
     active.current = null;
     stopPreview();
-    if (was === 'spotify') await pause(getToken, device.current?.id).catch(() => {});
+    if (was === 'spotify') {
+      if (remoteAvailable()) await remotePause();
+      else await pause(getToken, device.current?.id).catch(() => {});
+    }
   }, [getToken]);
 
   const stop = useCallback(async () => {
@@ -72,6 +86,19 @@ export function useSnippetPlayer() {
           position = Math.max(0, position);
           startPositions.current.set(key, position);
         }
+        if (remoteAvailable()) {
+          // Android: Spotify-App direkt steuern, das weckt sie auch aus dem Hintergrund.
+          const ok = await remotePlay(clientId, redirectUri, track.uri, position);
+          if (ok) {
+            active.current = 'spotify';
+            lastSpotifyError = null;
+            return true;
+          }
+          await remotePause();
+          lastSpotifyError = 'Spotify hat den Song nicht gestartet.';
+          spotifyUnreliable = true;
+          return false;
+        }
         device.current ??= await pickDevice(getToken);
         let result;
         try {
@@ -90,16 +117,19 @@ export function useSnippetPlayer() {
         }
         // Spotify hat den Befehl angenommen, spielt aber nicht: sicherheitshalber anhalten.
         await pause(getToken, device.current.id).catch(() => {});
+        lastSpotifyError = 'Spotify hat den Song nicht gestartet.';
         spotifyUnreliable = true;
         return false;
       } catch (e) {
         device.current = null;
+        lastSpotifyError = e instanceof Error ? e.message : String(e);
+        if (remoteAvailable()) spotifyUnreliable = true;
         // Bei abgelaufenem Login wird die Verbindung getrennt, gespielt wird trotzdem (als Ausschnitt).
         handleAuthError(e);
         return false;
       }
     },
-    [getToken, handleAuthError],
+    [getToken, handleAuthError, clientId, redirectUri],
   );
 
   /** Spielt `seconds` Sekunden des Songs. Die Startposition bleibt pro Song gleich, auch beim Nochmal-Hören. */
@@ -136,6 +166,7 @@ export function useSnippetPlayer() {
           active.current = 'preview';
         }
         setSource(used);
+        setFallbackNote(used === 'preview' && wantSpotify ? lastSpotifyError ?? 'Spotify hat nicht gestartet.' : null);
         setStatus('playing');
         await new Promise<void>((resolve) => {
           finish.current = resolve;
@@ -171,5 +202,5 @@ export function useSnippetPlayer() {
     [],
   );
 
-  return { status, error, playSnippet, stop, source };
+  return { status, error, playSnippet, stop, source, fallbackNote };
 }

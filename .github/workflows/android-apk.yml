@@ -48,6 +48,10 @@ jobs:
           node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json'));a.expo.version=process.argv[1].replace(/^v/,'');a.expo.android={...a.expo.android,versionCode:Number(process.argv[2])};fs.writeFileSync('app.json',JSON.stringify(a,null,2))" "$VERSION" "${{ github.run_number }}"
           grep -A1 '"version"' app.json
 
+      # Spotifys App-Remote-SDK gibt es nur als AAR im GitHub-Repo von Spotify, nicht auf Maven Central.
+      - name: Spotify App-Remote-SDK holen
+        run: bash modules/spotify-remote/scripts/fetch-sdk.sh
+
       - name: Android-Projekt erzeugen
         run: npx expo prebuild --platform android --no-install
 
@@ -79,4 +83,4 @@ jobs:
           files: ${{ env.APK_NAME }}
           body: |
             Android-APK zum Testen. Auf dem Handy herunterladen, öffnen und „Installation aus unbekannten Quellen“ erlauben.
-            Für Musik in der App unter „Spotify“ die Client-ID eintragen (Anleitung in der README).
+            Musik läuft ohne Einrichtung als 30-Sekunden-Ausschnitt. Für ganze Songs über Spotify in der App unter „Musik“ die Client-ID eintragen (Anleitung in der README).

@@ -1,0 +1,26 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.spotifyremote'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.spotifyremote"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+repositories {
+  mavenCentral()
+  // Spotifys App-Remote-SDK gibt es nicht auf Maven Central. scripts/fetch-sdk.sh legt es hier als lokales Maven-Repo ab.
+  maven { url "${projectDir}/libs/maven" }
+}
+
+dependencies {
+  implementation 'com.spotify.android:app-remote-local:1.0.0'
+  implementation 'com.google.code.gson:gson:2.11.0'
+}

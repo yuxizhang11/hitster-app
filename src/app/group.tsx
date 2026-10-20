@@ -171,6 +171,11 @@ export default function GroupScreen() {
                   ? `Nochmal hören: noch ${replaysLeft}×`
                   : 'Stifte weg, gleich wird aufgelöst'}
           </P>
+          {player.fallbackNote && player.status === 'playing' && (
+            <Text style={{ color: colors.yellow, fontSize: 13, textAlign: 'center' }}>
+              Spotify ging nicht ({player.fallbackNote}), es läuft ein Ausschnitt. Mehr unter Musik › Wiedergabe testen.
+            </Text>
+          )}
           {player.error && (
             <Card style={{ borderColor: colors.red, gap: 10, alignSelf: 'stretch' }}>
               <P style={{ color: colors.text }}>{player.error.message}</P>

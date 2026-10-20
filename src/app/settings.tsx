@@ -7,6 +7,8 @@ import { useMusicSource } from '../audio/source';
 import { Button, Card, H1, H2, P, Screen } from '../components/ui';
 import { diagnosePlayback, DiagnoseStep, loadPlaylist, parsePlaylistId } from '../spotify/api';
 import { useSpotify } from '../spotify/SpotifyContext';
+import { ANDROID_PACKAGE, ANDROID_SHA1 } from '../spotify/remote';
+import { retrySpotify } from '../spotify/useSnippetPlayer';
 import { useGame } from '../state/GameContext';
 import { colors } from '../theme';
 
@@ -25,7 +27,9 @@ export default function SettingsScreen() {
     setTesting(true);
     setTestSteps(null);
     try {
-      setTestSteps(await diagnosePlayback(spotify.getToken));
+      const steps = await diagnosePlayback(spotify.getToken, { clientId: spotify.clientId, redirectUri: spotify.redirectUri });
+      setTestSteps(steps);
+      if (steps.every((s) => s.ok)) retrySpotify();
     } finally {
       setTesting(false);
     }
@@ -111,7 +115,9 @@ export default function SettingsScreen() {
             {testSteps?.map((step, i) => (
               <View key={i} style={styles.status}>
                 <Ionicons name={step.ok ? 'checkmark-circle' : 'alert-circle'} size={20} color={step.ok ? colors.green : colors.yellow} />
-                <P style={{ flex: 1, color: colors.text }}>{step.text}</P>
+                <P style={{ flex: 1, color: colors.text }} selectable>
+                  {step.text}
+                </P>
               </View>
             ))}
             <Button title="Trennen" variant="ghost" onPress={spotify.logout} />
@@ -185,16 +191,20 @@ export default function SettingsScreen() {
       <H2>Einrichtung (einmalig)</H2>
       <Card style={{ gap: 8 }}>
         <P>1. Auf developer.spotify.com/dashboard einloggen und „Create app“ wählen.</P>
-        <P>2. Bei „Which API/SDKs are you planning to use?“ die Web API ankreuzen.</P>
+        <P>2. Bei „Which API/SDKs are you planning to use?“ die Web API und Android ankreuzen.</P>
         <P>3. Diese Redirect-URI eintragen (genau so):</P>
         <Text selectable style={styles.code}>
           {spotify.redirectUri}
         </Text>
-        <P>4. Unter „User Management“ die Spotify-E-Mail aller Mitspieler eintragen, die sich einloggen sollen.</P>
-        <P>5. Die Client-ID oben einfügen und verbinden.</P>
-        <P style={{ color: colors.textMuted }}>
-          Vor dem Spielen kurz die Spotify-App öffnen, damit das Handy als Abspielgerät erkannt wird.
-        </P>
+        <P>4. Unter „Android packages“ diesen Paketnamen und SHA1-Fingerabdruck eintragen:</P>
+        <Text selectable style={styles.code}>
+          {ANDROID_PACKAGE}
+        </Text>
+        <Text selectable style={styles.code}>
+          {ANDROID_SHA1}
+        </Text>
+        <P>5. Unter „User Management“ die Spotify-E-Mail aller Mitspieler eintragen, die sich einloggen sollen.</P>
+        <P>6. Die Client-ID oben einfügen, verbinden und „Wiedergabe testen“ drücken. Beim ersten Mal fragt Spotify einmal nach Erlaubnis.</P>
       </Card>
     </Screen>
   );
