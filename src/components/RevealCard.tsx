@@ -7,7 +7,8 @@ import type { Song } from '../data/types';
 const native = Platform.OS !== 'web';
 
 /** Hitster-Karte, die sich beim Auflösen umdreht. */
-export function RevealCard({ song, gradient }: { song: Song; gradient: [string, string] }) {
+/** `compact`: kleinere Karte, wenn darunter noch mehrere Ergebnisse stehen. */
+export function RevealCard({ song, gradient, compact }: { song: Song; gradient: [string, string]; compact?: boolean }) {
   const flip = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -20,11 +21,11 @@ export function RevealCard({ song, gradient }: { song: Song; gradient: [string, 
 
   return (
     <Animated.View style={{ transform: [{ perspective: 1000 }, { rotateY }, { scale }] }}>
-      <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
+      <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, compact && styles.cardCompact]}>
         <Text style={styles.artist} numberOfLines={2}>
           {song.artist}
         </Text>
-        <Text style={styles.year}>{song.year}</Text>
+        <Text style={[styles.year, compact && { fontSize: 52 }]}>{song.year}</Text>
         <Text style={styles.title} numberOfLines={3}>
           {song.title}
         </Text>
@@ -44,6 +45,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
+  cardCompact: { width: 220, minHeight: 0, padding: 16, gap: 4 },
   artist: { color: '#fff', fontSize: 18, fontWeight: '700', textAlign: 'center' },
   year: { color: '#fff', fontSize: 64, fontWeight: '900', letterSpacing: -2 },
   title: { color: '#fff', fontSize: 18, fontStyle: 'italic', textAlign: 'center' },

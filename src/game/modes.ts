@@ -92,7 +92,7 @@ export const MODES: ModeDef[] = [
     tagline: 'Aus welchem Jahr ist der Song?',
     rules: [
       'Schätze das Erscheinungsjahr.',
-      'Exakt: 5 Punkte · 1 Jahr daneben: 3 · bis 3 Jahre: 2 · bis 5 Jahre: 1.',
+      'Genau richtig: 2 Punkte · 1 Jahr daneben: 1 Punkt.',
     ],
     questions: ['year'],
     snippetSeconds: 20,
@@ -176,7 +176,7 @@ export const MODES: ModeDef[] = [
     tagline: 'Künstler, Titel und Jahr in einem Zug',
     rules: [
       'Pro Song beantwortest du drei Fragen hintereinander.',
-      'Künstler und Titel geben je 1 Punkt, das Jahr bis zu 5 Punkte.',
+      'Künstler und Titel geben je 1 Punkt, das Jahr bis zu 2 Punkte.',
     ],
     questions: ['artist', 'title', 'year'],
     snippetSeconds: 20,
@@ -191,10 +191,9 @@ export const MODES: ModeDef[] = [
     emoji: '📝',
     tagline: 'Alle raten gleichzeitig auf Papier',
     rules: [
-      'Jeder braucht Zettel und Stift. Das Handy liegt in der Mitte.',
-      'Pro Runde läuft ein Song, alle schreiben Künstler, Titel und Jahr auf.',
-      'Danach wird aufgelöst. Punkte zählt ihr selbst oder tippt sie in der App an.',
-      'Vorschlag: 1 Punkt für Künstler, 1 für Titel, 1 für das Jahr (±2 Jahre).',
+      'Handy in die Mitte, ein Song läuft, alle schreiben Künstler, Titel und Jahr auf.',
+      'Danach wird aufgelöst und es gibt Punkte.',
+      'Vorschlag: Künstler 1, Titel 1, Jahr genau 2, ein Jahr daneben 1.',
     ],
     questions: [],
     snippetSeconds: 25,

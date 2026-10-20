@@ -172,12 +172,8 @@ export function buildQuestion(type: QuestionType, song: Song, allSongs: Song[], 
       return { type, options: choiceOptions(song.title, song, allSongs, rng, 'title') };
     case 'song':
       return { type, options: choiceOptions(songLabel(song), song, allSongs, rng, 'song') };
-    case 'decade': {
-      const d = Math.floor(song.year / 10) * 10;
-      const offset = Math.floor(rng() * 4); // Position der richtigen Antwort
-      const decades = [0, 1, 2, 3].map((i) => d + (i - offset) * 10);
-      return { type, options: decades.map(decadeLabel) };
-    }
+    case 'decade':
+      return { type, options: decadeOptions(song.year, allSongs, rng).map(decadeLabel) };
     default:
       return { type };
   }
@@ -208,12 +204,30 @@ function choiceOptions(
   return shuffle([correct, ...wrong], rng);
 }
 
+/**
+ * Bis zu vier Jahrzehnte zur Auswahl, chronologisch sortiert. Nur Jahrzehnte, aus denen auch Songs im Spiel sind,
+ * damit z. B. bei 2000er + 2010er keine 90er oder gar 2030er auftauchen.
+ */
+export function decadeOptions(year: number, allSongs: Song[], rng: Rng = Math.random, now = new Date().getFullYear()): number[] {
+  const correct = Math.floor(year / 10) * 10;
+  const lastDecade = Math.floor(now / 10) * 10;
+  const available = [...new Set(allSongs.map((s) => Math.floor(s.year / 10) * 10))].filter((d) => d !== correct && d <= lastDecade);
+  if (available.length < 1) {
+    // Nur ein Jahrzehnt im Spiel: Nachbarn ergänzen, aber nie in der Zukunft.
+    for (const d of [correct - 10, correct + 10, correct - 20]) if (d <= lastDecade) available.push(d);
+  }
+  // Nahe Jahrzehnte bevorzugen, damit es nicht zu leicht wird; bei gleichem Abstand per Zufall.
+  const wrong = shuffle(available, rng)
+    .sort((a, b) => Math.abs(a - correct) - Math.abs(b - correct))
+    .slice(0, 3);
+  return [correct, ...wrong].sort((a, b) => a - b);
+}
+
+/** Genaue Jahreszahl: 2 Punkte, ein Jahr daneben: 1 Punkt. */
 export function yearPoints(guess: number, actual: number): number {
   const diff = Math.abs(guess - actual);
-  if (diff === 0) return 5;
-  if (diff === 1) return 3;
-  if (diff <= 3) return 2;
-  if (diff <= 5) return 1;
+  if (diff === 0) return 2;
+  if (diff === 1) return 1;
   return 0;
 }
 
@@ -243,7 +257,8 @@ export function answer(state: GameState, value: AnswerValue, meta: AnswerMeta = 
   const player = state.players[turn.playerIndex];
   const result = evaluate(question.type, song, player, value);
 
-  if (result.correct) {
+  // Die Jahreszahl gibt immer höchstens 2 Punkte, auch in Speed oder Poker.
+  if (result.correct && question.type !== 'year') {
     if (state.mode.timeLimitSeconds && meta.remainingFraction !== undefined) {
       result.points = 1 + Math.round(4 * Math.max(0, Math.min(1, meta.remainingFraction)));
     } else if (state.mode.pokerStages && meta.pokerStage !== undefined) {
