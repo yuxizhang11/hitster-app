@@ -69,11 +69,11 @@ export default function Home() {
         <Card style={styles.spotify}>
           <Ionicons name={connected ? 'checkmark-circle' : 'musical-notes'} size={28} color={connected ? colors.green : colors.pink} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.spotifyTitle}>{connected ? 'Spotify verbunden' : 'Spotify verbinden'}</Text>
+            <Text style={styles.spotifyTitle}>{connected ? 'Spotify verbunden' : 'Musik & Spotify'}</Text>
             <P>
               {connected
                 ? `Angemeldet als ${user?.display_name ?? '…'}`
-                : 'Für echte Musik brauchst du Spotify Premium. Ohne Verbindung läuft ein stummer Demo-Modus.'}
+                : 'Optional: Mit Spotify Premium hörst du ganze Songs. Ohne läuft ein 30-Sekunden-Ausschnitt.'}
             </P>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

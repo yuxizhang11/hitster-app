@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, usePreventRemove } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Equalizer } from '../components/Equalizer';
 import { PlayOrb } from '../components/PlayOrb';
@@ -235,9 +235,7 @@ export default function GameScreen() {
               {!hasPlayed
                 ? 'Tippe auf die Platte, um den Song zu hören'
                 : player.status === 'playing'
-                  ? player.demo
-                    ? 'Demo-Modus: kein Ton (Spotify nicht verbunden)'
-                    : `Läuft… ${snippetSeconds} Sekunden`
+                  ? `Läuft… ${snippetSeconds} Sekunden`
                   : pokerStages
                     ? `Du hast ${snippetSeconds} s gehört`
                     : replaysLeft > 0
@@ -249,9 +247,6 @@ export default function GameScreen() {
           {player.error && (
             <Card style={{ borderColor: colors.red, gap: 10 }}>
               <P style={{ color: colors.text }}>{player.error.message}</P>
-              {(player.error.code === 'NO_DEVICE' || player.error.code === 'NOT_PLAYING') && (
-                <Button title="Spotify öffnen" variant="ghost" onPress={() => Linking.openURL('spotify:').catch(() => {})} />
-              )}
               <Button title="Nochmal versuchen" variant="ghost" onPress={() => playCurrent()} />
             </Card>
           )}

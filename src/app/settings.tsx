@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useMusicSource } from '../audio/source';
 import { Button, Card, H1, H2, P, Screen } from '../components/ui';
 import { diagnosePlayback, DiagnoseStep, loadPlaylist, parsePlaylistId } from '../spotify/api';
 import { useSpotify } from '../spotify/SpotifyContext';
@@ -18,6 +19,7 @@ export default function SettingsScreen() {
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [testSteps, setTestSteps] = useState<DiagnoseStep[] | null>(null);
+  const [musicSource, setMusicSource] = useMusicSource();
 
   const runTest = async () => {
     setTesting(true);
@@ -57,8 +59,35 @@ export default function SettingsScreen() {
         <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} hitSlop={12}>
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </Pressable>
-        <H1>Spotify</H1>
+        <H1>Musik</H1>
       </View>
+
+      <Card style={{ gap: 10 }}>
+        <Text style={styles.label}>Musikquelle</Text>
+        <View style={styles.segment}>
+          {(
+            [
+              ['auto', 'Spotify, sonst Ausschnitt'],
+              ['preview', 'Nur Ausschnitte'],
+            ] as const
+          ).map(([value, label]) => (
+            <Pressable
+              key={value}
+              onPress={() => setMusicSource(value)}
+              style={[styles.segmentItem, musicSource === value && { backgroundColor: colors.pink }]}
+            >
+              <Text style={[styles.segmentText, musicSource === value && { color: '#fff' }]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <P style={{ fontSize: 13 }}>
+          {musicSource === 'auto'
+            ? 'Mit Spotify-Verbindung spielt die Spotify-App den Song. Startet Spotify nicht, spielt die App automatisch einen 30-Sekunden-Ausschnitt.'
+            : 'Die App spielt immer einen 30-Sekunden-Ausschnitt (iTunes/Deezer). Ganz ohne Spotify, nur Internet ist nötig.'}
+        </P>
+      </Card>
+
+      <H2>Spotify (optional)</H2>
 
       <Card style={{ gap: 12 }}>
         {spotify.connected ? (
@@ -90,8 +119,8 @@ export default function SettingsScreen() {
         ) : (
           <>
             <P>
-              Die Musik läuft über die Spotify-App auf diesem Handy. Du brauchst Spotify Premium und eine eigene
-              Client-ID aus dem Spotify Developer Dashboard (Anleitung unten).
+              Ohne Spotify spielt die App 30-Sekunden-Ausschnitte. Mit Spotify Premium und einer eigenen Client-ID aus
+              dem Spotify Developer Dashboard (Anleitung unten) läuft der ganze Song über die Spotify-App.
             </P>
             <Text style={styles.label}>Client-ID</Text>
             <TextInput
@@ -172,6 +201,9 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  segment: { flexDirection: 'row', backgroundColor: colors.bgSoft, borderRadius: 14, padding: 4, gap: 4 },
+  segmentItem: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 10, alignItems: 'center' },
+  segmentText: { color: colors.textDim, fontWeight: '700', fontSize: 14, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusText: { color: colors.text, fontWeight: '800', fontSize: 17 },
