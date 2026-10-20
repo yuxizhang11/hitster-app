@@ -143,7 +143,11 @@ export async function transferPlayback(getToken: GetToken, deviceId: string) {
   await call(getToken, '/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play: false }) });
 }
 
-type PlayerState = { is_playing: boolean; device?: { id: string }; item?: { uri: string } | null };
+type PlayerState = {
+  is_playing: boolean;
+  device?: { id: string; name?: string; volume_percent?: number | null };
+  item?: { uri: string; name?: string } | null;
+};
 
 export async function playerState(getToken: GetToken): Promise<PlayerState | null> {
   return call<PlayerState>(getToken, '/me/player');
@@ -156,35 +160,40 @@ async function sendPlay(getToken: GetToken, deviceId: string, uri: string, posit
   });
 }
 
-async function isPlaying(getToken: GetToken, deviceId: string, uri: string): Promise<boolean> {
-  // Spotify braucht nach dem Befehl einen Moment, bis der Status stimmt.
-  for (let i = 0; i < 4; i++) {
+/**
+ * Wartet, bis Spotify für das Gerät „spielt“ meldet. Die Track-URI wird bewusst nicht verglichen: Spotify ersetzt
+ * Tracks je nach Land durch eine gleichwertige Version mit anderer URI.
+ */
+async function waitUntilPlaying(getToken: GetToken, deviceId: string): Promise<PlayerState | null> {
+  let last: PlayerState | null = null;
+  for (let i = 0; i < 8; i++) {
     await wait(500);
-    const state = await playerState(getToken).catch(() => null);
-    if (state?.is_playing && state.item?.uri === uri && (!state.device || state.device.id === deviceId)) return true;
+    last = await playerState(getToken).catch(() => null);
+    if (last?.is_playing && (!last.device || last.device.id === deviceId)) return last;
   }
-  return false;
+  return last;
 }
 
+export type PlayResult = { verified: boolean; state: PlayerState | null };
+
 /**
- * Startet den Song auf dem Gerät und prüft, ob er wirklich läuft. Inaktive Handys (z. B. Spotify im Hintergrund
- * geschlossen) nehmen den Befehl oft an, spielen aber nicht. Dann einmal das Gerät aktivieren und neu starten.
+ * Startet den Song auf dem Gerät und prüft, ob Spotify die Wiedergabe meldet. Inaktive Handys nehmen den Befehl
+ * manchmal an, spielen aber nicht; dann einmal das Gerät aktivieren und neu starten. Das Spiel wird nie blockiert:
+ * Meldet Spotify auch danach nichts, gibt es nur einen Hinweis zurück.
  */
-export async function play(getToken: GetToken, device: Device, uri: string, positionMs: number) {
+export async function play(getToken: GetToken, device: Device, uri: string, positionMs: number): Promise<PlayResult> {
   if (!device.is_active) {
     await transferPlayback(getToken, device.id).catch(() => {});
     await wait(400);
   }
   await sendPlay(getToken, device.id, uri, positionMs);
-  if (await isPlaying(getToken, device.id, uri)) return;
+  let state = await waitUntilPlaying(getToken, device.id);
+  if (state?.is_playing) return { verified: true, state };
   await transferPlayback(getToken, device.id).catch(() => {});
   await wait(600);
   await sendPlay(getToken, device.id, uri, positionMs);
-  if (await isPlaying(getToken, device.id, uri)) return;
-  throw new SpotifyError(
-    `Spotify hat den Befehl an „${device.name}“ geschickt, aber dort läuft nichts. Öffne die Spotify-App, spiel kurz irgendeinen Song an und komm zurück.`,
-    'NOT_PLAYING',
-  );
+  state = await waitUntilPlaying(getToken, device.id);
+  return { verified: !!state?.is_playing, state };
 }
 
 export async function pause(getToken: GetToken, deviceId?: string) {
@@ -285,10 +294,17 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
       year: 2004,
       category: 'test',
     });
-    await play(getToken, device, track.uri, 30_000);
+    const result = await play(getToken, device, track.uri, 30_000);
+    const st = result.state;
     steps.push({
-      ok: true,
-      text: `Testsong läuft auf „${device.name}“${device.volume_percent === 0 ? ', aber die Spotify-Lautstärke steht auf 0' : ''}`,
+      ok: result.verified,
+      text: result.verified
+        ? `Testsong läuft auf „${st?.device?.name ?? device.name}“${st?.device?.volume_percent === 0 ? ', aber die Spotify-Lautstärke steht auf 0' : ''}`
+        : `Befehl an „${device.name}“ geschickt, Spotify meldet aber: ${
+            st
+              ? `${st.is_playing ? 'spielt' : 'pausiert'} auf „${st.device?.name ?? '?'}“, Song „${st.item?.name ?? '–'}“`
+              : 'kein aktiver Player'
+          }`,
     });
     await wait(4000);
     await pause(getToken, device.id);

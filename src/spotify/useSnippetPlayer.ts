@@ -57,17 +57,28 @@ export function useSnippetPlayer() {
             startPositions.current.set(song.id, Math.max(0, position));
           }
           device.current ??= await pickDevice(getToken);
+          let result;
           try {
-            await play(getToken, device.current, track.uri, position);
+            result = await play(getToken, device.current, track.uri, position);
           } catch (e) {
             // Gerät könnte inzwischen weg sein: einmal neu suchen.
             if (e instanceof SpotifyError && e.code === 'NO_DEVICE') {
               device.current = await pickDevice(getToken);
-              await play(getToken, device.current, track.uri, position);
+              result = await play(getToken, device.current, track.uri, position);
             } else throw e;
           }
-          // Ab jetzt ist das Gerät aktiv, spätere Snippets brauchen keinen Wechsel mehr.
-          device.current = { ...device.current, is_active: true };
+          if (result.verified) {
+            // Ab jetzt ist das Gerät aktiv, spätere Snippets brauchen keinen Wechsel mehr.
+            device.current = { ...device.current, is_active: true };
+          } else if (gen === generation.current) {
+            // Nur ein Hinweis: Das Spiel läuft weiter, falls die Musik doch spielt.
+            setError(
+              new SpotifyError(
+                `Spotify meldet auf „${device.current.name}“ keine Wiedergabe. Kein Ton? Tippe auf „Spotify öffnen“, drück dort kurz auf Play und komm zurück.`,
+                'NOT_PLAYING',
+              ),
+            );
+          }
         }
         if (gen !== generation.current) {
           // Während des Ladens wurde gestoppt: Musik gleich wieder aus.
