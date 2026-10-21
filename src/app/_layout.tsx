@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SpotifyProvider } from '../spotify/SpotifyContext';
 import { GameProvider } from '../state/GameContext';
 import { colors } from '../theme';
+import { UpdatePopup } from '../update/UpdatePopup';
 
 const theme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: colors.bg } };
 
@@ -20,6 +21,7 @@ export default function RootLayout() {
               <Stack.Screen name="group" options={{ gestureEnabled: false }} />
               <Stack.Screen name="results" options={{ gestureEnabled: false }} />
             </Stack>
+            <UpdatePopup />
           </GameProvider>
         </SpotifyProvider>
       </ThemeProvider>

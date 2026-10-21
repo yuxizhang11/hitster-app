@@ -71,6 +71,15 @@ export function shuffle<T>(items: T[], rng: Rng = Math.random): T[] {
   return a;
 }
 
+/** Jahrzehnt eines Jahres, z. B. 1987 → 1980. */
+export const decadeOf = (year: number) => Math.floor(year / 10) * 10;
+
+/** Songs der gewählten Kategorien, ohne Doppelte; mit gewählten Jahrzehnten nur Songs aus diesen. */
+export function pickSongs(categories: { id: string; songs: Song[] }[], categoryIds: string[], decades?: number[]): Song[] {
+  const songs = dedupeSongs(categories.filter((c) => categoryIds.includes(c.id)).flatMap((c) => c.songs));
+  return decades?.length ? songs.filter((s) => decades.includes(decadeOf(s.year))) : songs;
+}
+
 export function dedupeSongs(songs: Song[]): Song[] {
   const seen = new Set<string>();
   return songs.filter((s) => {

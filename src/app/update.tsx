@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, H1, P, Screen } from '../components/ui';
 import { checkForUpdate, currentVersion, RELEASES_URL, UpdateError, UpdateInfo } from '../update/checkUpdate';
+import { notificationsAllowed, openNotificationSettings } from '../update/background';
 import { downloadAndInstall } from '../update/installUpdate';
+import { RELEASE_NOTES } from '../update/releaseNotes';
 import { colors } from '../theme';
 
 /** Zeigt die installierte Version und lädt bei Bedarf die neue APK von GitHub. */
@@ -16,6 +18,10 @@ export default function UpdateScreen() {
   /** Download-Fortschritt 0..1, null wenn gerade nichts geladen wird. */
   const [progress, setProgress] = useState<number | null>(null);
   const [installError, setInstallError] = useState<string | null>(null);
+  const [notifyOk, setNotifyOk] = useState(true);
+  // Aus dem Popup „Jetzt aktualisieren“: nach der Prüfung gleich herunterladen.
+  const { install } = useLocalSearchParams<{ install?: string }>();
+  const [autoStarted, setAutoStarted] = useState(false);
 
   const check = async () => {
     setChecking(true);
@@ -31,6 +37,7 @@ export default function UpdateScreen() {
 
   useEffect(() => {
     check();
+    notificationsAllowed().then(setNotifyOk).catch(() => {});
   }, []);
 
   const download = async () => {
@@ -49,6 +56,14 @@ export default function UpdateScreen() {
       setProgress(null);
     }
   };
+
+  useEffect(() => {
+    if (install && !autoStarted && info?.available && Platform.OS === 'android') {
+      setAutoStarted(true);
+      download();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [info, install]);
 
   return (
     <Screen>
@@ -129,6 +144,34 @@ export default function UpdateScreen() {
         ) : null}
         {!checking && <Button title="Nochmal prüfen" variant="ghost" onPress={check} />}
       </Card>
+
+      {Platform.OS === 'android' && (
+        <P style={{ fontSize: 13 }}>
+          Hitster sieht etwa alle 3 Stunden im Hintergrund nach und meldet eine neue Version einmal per Benachrichtigung.
+        </P>
+      )}
+      {!notifyOk && (
+        <Card style={{ gap: 8 }}>
+          <P style={{ color: colors.yellow }}>Benachrichtigungen sind für Hitster aus, deshalb kommt keine Meldung bei neuen Versionen.</P>
+          <Button title="Benachrichtigungen erlauben" variant="ghost" onPress={openNotificationSettings} />
+        </Card>
+      )}
+
+      <Card style={{ gap: 12 }}>
+        <Text style={styles.label}>Neuerungen</Text>
+        {RELEASE_NOTES.map((n) => (
+          <View key={n.version} style={{ gap: 4 }}>
+            <Text style={styles.noteHead}>
+              Version {n.version} · {n.date}
+            </Text>
+            {n.items.map((item) => (
+              <Text key={item} style={styles.notes}>
+                • {item}
+              </Text>
+            ))}
+          </View>
+        ))}
+      </Card>
     </Screen>
   );
 }
@@ -140,6 +183,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   status: { color: colors.text, fontWeight: '800', fontSize: 16 },
   notes: { color: colors.textDim, fontSize: 14, lineHeight: 20 },
+  noteHead: { color: colors.text, fontWeight: '800', fontSize: 15 },
   bar: { height: 8, borderRadius: 4, backgroundColor: colors.bgSoft, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: colors.green },
 });

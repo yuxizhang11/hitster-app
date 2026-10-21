@@ -39,9 +39,14 @@ Unter [Releases](https://github.com/yuxizhang11/hitster-app/releases) liegt die 
 Run workflow** (Version wie `v0.2.0` eingeben) oder automatisch, sobald ein Tag wie `v0.2.0` gepusht wird. Jeder Pull Request baut die APK ebenfalls,
 sie hängt dann als Artefakt am Actions-Lauf.
 
-Ab v0.3.0 sucht die App beim Start selbst nach einer neuen Release und zeigt dann oben einen Hinweis. Unter
-**Version · Nach Updates suchen** (unten auf dem Startbildschirm) lässt sich die neue APK direkt herunterladen. Dafür muss
-das Repo öffentlich sein. Die Versionsnummer der App kommt beim Bauen automatisch aus dem Release-Tag.
+Die App sucht beim Start nach einer neuen Release und zeigt dann ein Popup mit den Neuerungen und „Jetzt aktualisieren“.
+Im Hintergrund sieht sie etwa alle 3 Stunden nach und meldet eine neue Version einmal per Benachrichtigung; Tippen öffnet
+**Updates**. Nach einem Update zeigt sie einmal, was neu ist. Dafür muss das Repo öffentlich sein.
+
+So entsteht eine neue Version:
+1. In `RELEASE_NOTES.txt` oben einen Abschnitt `0.8.0 – Datum` mit Punkten `- …` ergänzen, dann `npm run notes`.
+2. Die Version in `app.json` anheben (beim Bauen kommt sie ohnehin aus dem Release-Tag).
+3. Unter **Actions → Android APK → Run workflow** `v0.8.0` eingeben. Der Release-Text kommt aus `RELEASE_NOTES.txt`.
 
 ## Musik
 
