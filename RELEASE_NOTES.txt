@@ -5,6 +5,8 @@ und der Build nimmt den Abschnitt der neuen Version als Text fürs Release.
 
 0.7.0 – 21.10.2026
 - Neues Spiel steht wieder auf einer Seite: Spieler, Spielmodus und Musik ohne Weiter-Schritte
+- Neue Spielmodi: Intro-Raten (nur die ersten 5 Sekunden), Jahrzehnt-Blitz (gegen die Uhr) und Zeitstrahl-K.o. (ein Fehler und du bist raus)
+- Kategorien und Jahrzehnte lassen sich in jedem Modus frei wählen, „Alle Kategorien“ mischt alles
 - Neue Kategorien: Deutschrap Gangster, Deutschrap Pop, House, Electro, Weihnachten, Sommerhits, Party & Schlager, Film & Serien, 70er und Hip-Hop
 - Updates: Bei einer neuen Version erscheint ein Popup mit den Neuerungen, direkt mit „Jetzt aktualisieren“
 - Updates: Hitster sieht etwa alle 3 Stunden im Hintergrund nach und meldet eine neue Version einmal per Benachrichtigung

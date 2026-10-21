@@ -10,7 +10,10 @@ export type ModeId =
   | 'sudden'
   | 'party'
   | 'profi'
-  | 'zettel';
+  | 'zettel'
+  | 'intro'
+  | 'blitz'
+  | 'zeitstrahl-ko';
 
 export type EndRule =
   | { kind: 'cards'; target: number }
@@ -203,6 +206,47 @@ export const MODES: ModeDef[] = [
     colors: ['#2EE59D', '#00A3FF'],
     group: true,
   },
+  {
+    id: 'intro',
+    name: 'Intro-Raten',
+    emoji: '🎬',
+    tagline: 'Erkennst du den Song am Anfang?',
+    rules: ['Du hörst nur die ersten 5 Sekunden des Songs.', 'Welcher Song ist es? Richtig gibt 1 Punkt.'],
+    questions: ['song'],
+    snippetSeconds: 5,
+    startAt: 'intro',
+    replays: 1,
+    end: { kind: 'rounds', rounds: 5 },
+    colors: ['#00E5FF', '#00A36C'],
+  },
+  {
+    id: 'blitz',
+    name: 'Jahrzehnt-Blitz',
+    emoji: '⏱️',
+    tagline: 'Jahrzehnt raten gegen die Uhr',
+    rules: ['10 Sekunden Musik und 10 Sekunden Zeit.', 'Aus welchem Jahrzehnt ist der Song? Je schneller, desto mehr Punkte.'],
+    questions: ['decade'],
+    snippetSeconds: 10,
+    startAt: 'middle',
+    timeLimitSeconds: 10,
+    replays: 0,
+    end: { kind: 'rounds', rounds: 8 },
+    colors: ['#FF00C8', '#FFD000'],
+  },
+  {
+    id: 'zeitstrahl-ko',
+    name: 'Zeitstrahl-K.o.',
+    emoji: '🥊',
+    tagline: 'Ein Fehler im Zeitstrahl und du bist raus',
+    rules: ['Ordne den Song in deinen Zeitstrahl ein.', 'Wer falsch einordnet, scheidet aus. Der Letzte gewinnt.'],
+    questions: ['timeline'],
+    snippetSeconds: 20,
+    startAt: 'middle',
+    replays: 1,
+    end: { kind: 'survival' },
+    colors: ['#2A0A3D', '#FF4FD8'],
+  },
+
 ];
 
 export function getMode(id: ModeId): ModeDef {
