@@ -2,7 +2,7 @@
   "expo": {
     "name": "Hitster",
     "slug": "hitster-app",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -33,7 +33,8 @@
       "expo-audio",
       "./modules/spotify-remote/app.plugin.js",
       "expo-notifications",
-      "expo-background-task"
+      "expo-background-task",
+      "./plugins/withProguardKeep.js"
     ],
     "scheme": "hitster",
     "backgroundColor": "#0B0620",
