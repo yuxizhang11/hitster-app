@@ -25,6 +25,8 @@ const SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-read-currently-playing',
+  // Erlaubt Hitster, die Spotify-App auf dem Handy direkt zu steuern (App-Remote-SDK).
+  'app-remote-control',
   'playlist-read-private',
   'playlist-read-collaborative',
 ];

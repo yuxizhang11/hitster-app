@@ -80,16 +80,16 @@ export function TimelinePicker({ timeline, onPick }: { timeline: Song[]; onPick:
         }}
         style={({ pressed }) => [styles.slot, pressed && styles.slotPressed]}
       >
-        <Ionicons name="add-circle" size={20} color={colors.cyan} />
+        <Ionicons name="add-circle" size={18} color={colors.cyan} />
         <Text style={styles.slotText}>Hier einordnen · {label}</Text>
       </Pressable>
     );
   };
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 6 }}>
       <Slot index={0} />
       {timeline.map((song, i) => (
-        <View key={song.id} style={{ gap: 8 }}>
+        <View key={song.id} style={{ gap: 6 }}>
           <View style={styles.tlCard}>
             <Text style={styles.tlYear}>{song.year}</Text>
             <View style={{ flex: 1 }}>
@@ -145,14 +145,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.cardBorder,
     borderWidth: 1.5,
-    borderRadius: 18,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
   choicePressed: { borderColor: colors.pink, transform: [{ scale: 0.98 }] },
   choiceLetter: { color: colors.pink, fontWeight: '900', fontSize: 18, width: 20 },
   choiceText: { color: colors.text, fontSize: 17, fontWeight: '600', flex: 1 },
-  bigYear: { color: colors.text, fontSize: 80, fontWeight: '900', letterSpacing: -3 },
+  bigYear: { color: colors.text, fontSize: 68, fontWeight: '900', letterSpacing: -3 },
   stepRow: { flexDirection: 'row', gap: 10 },
   step: {
     backgroundColor: colors.card,
@@ -171,23 +171,24 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colors.cyan,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   slotPressed: { backgroundColor: 'rgba(0,229,255,0.15)' },
-  slotText: { color: colors.cyan, fontWeight: '700', fontSize: 15 },
+  slotText: { color: colors.cyan, fontWeight: '700', fontSize: 14 },
   tlCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderLeftWidth: 4,
     borderLeftColor: colors.pink,
   },
-  tlYear: { color: colors.text, fontSize: 22, fontWeight: '900', width: 64 },
+  tlYear: { color: colors.text, fontSize: 20, fontWeight: '900', width: 58 },
   tlTitle: { color: colors.text, fontWeight: '700', fontSize: 15 },
   tlArtist: { color: colors.textDim, fontSize: 13 },
   barTrack: { height: 10, borderRadius: 5, backgroundColor: colors.bgSoft, overflow: 'hidden' },

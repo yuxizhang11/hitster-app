@@ -4,7 +4,7 @@ import type { Song } from '../data/types';
 import type { ModeDef } from './modes';
 import {
   answer, createGame, decadeLabel, endGroupRound, endTurn, givePoints, insertSorted, slotIsCorrect, startGroupRound, startTurn,
-  turnIsDone, winners, yearPoints,
+  turnIsDone, winners, yearPoints, decadeOptions,
 } from './engine.ts';
 
 let seed = 1;
@@ -19,11 +19,10 @@ const base: Omit<ModeDef, 'id' | 'questions' | 'end'> = {
 };
 
 test('yearPoints', () => {
-  assert.equal(yearPoints(2000, 2000), 5);
-  assert.equal(yearPoints(2001, 2000), 3);
-  assert.equal(yearPoints(1997, 2000), 2);
-  assert.equal(yearPoints(2005, 2000), 1);
-  assert.equal(yearPoints(2010, 2000), 0);
+  assert.equal(yearPoints(2000, 2000), 2);
+  assert.equal(yearPoints(2001, 2000), 1);
+  assert.equal(yearPoints(1999, 2000), 1);
+  assert.equal(yearPoints(1998, 2000), 0);
 });
 
 test('decadeLabel', () => {
@@ -112,4 +111,17 @@ test('Zettel-Runde: feste Songanzahl, Punkte per Hand', () => {
   assert.equal(givePoints(g, 0, -1).players[0].score, 0);
   assert.deepEqual(winners(g).map((p) => p.name), ['B']);
   assert.equal(createGame(mode, ['A'], songs, {}, rng).scoring, 'app');
+});
+
+test('decadeOptions: nur Jahrzehnte aus dem Spiel, nie in der Zukunft', () => {
+  const mk = (year: number) => ({ id: String(year), title: 't', artist: 'a', year, category: 'c' });
+  const only0010 = [mk(2003), mk(2008), mk(2012), mk(2019)];
+  assert.deepEqual(decadeOptions(2012, only0010, Math.random, 2026), [2000, 2010]);
+  const many = [1975, 1985, 1995, 2005, 2015, 2024].map(mk);
+  const opts = decadeOptions(2024, many, Math.random, 2026);
+  assert.equal(opts.length, 4);
+  assert.ok(opts.includes(2020) && opts.every((d) => d <= 2020));
+  assert.deepEqual(opts, [...opts].sort((a, b) => a - b));
+  // Nur ein Jahrzehnt im Spiel: Nachbarn, aber keine 2030er
+  assert.deepEqual(decadeOptions(2022, [mk(2021), mk(2024)], Math.random, 2026), [2000, 2010, 2020]);
 });

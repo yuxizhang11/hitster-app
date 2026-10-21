@@ -1,26 +1,54 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { findPreview, playPreview, PREVIEW_SECONDS, stopPreview } from '../audio/preview';
+import { getMusicSource } from '../audio/source';
 import type { Song } from '../data/types';
 import { Device, pause, pickDevice, play, resolveTrack, SpotifyError } from './api';
+import { remoteAvailable, remotePause, remotePlay } from './remote';
 import { useSpotify } from './SpotifyContext';
 
 export type PlayerStatus = 'idle' | 'loading' | 'playing' | 'error';
+/** Was gerade wirklich spielt: die Spotify-App oder der 30-Sekunden-Ausschnitt in der App. */
+export type PlaybackSource = 'spotify' | 'preview';
 
 /**
- * Spielt kurze Ausschnitte über die Spotify-App auf dem Handy ab.
- * Ohne Spotify-Verbindung läuft ein stummer Demo-Modus, damit man die App trotzdem ausprobieren kann.
+ * Wenn Spotify in dieser App-Sitzung einmal nicht losgespielt hat, gleich die Ausschnitte nehmen,
+ * statt bei jedem Song erneut einige Sekunden auf Spotify zu warten.
+ */
+let spotifyUnreliable = false;
+let wasConnected = false;
+/** Warum Spotify zuletzt nicht gespielt hat, für den Hinweis im Spiel. */
+let lastSpotifyError: string | null = null;
+/** Die direkte Verbindung zur Spotify-App ist in dieser Sitzung gescheitert, dann gleich Spotify Connect nehmen. */
+let remoteFailed = false;
+
+/** Nach einem erfolgreichen Test in den Einstellungen Spotify wieder versuchen. */
+export function retrySpotify() {
+  spotifyUnreliable = false;
+  remoteFailed = false;
+  lastSpotifyError = null;
+}
+
+/**
+ * Spielt kurze Ausschnitte. Mit Spotify-Verbindung über die Spotify-App auf dem Handy,
+ * sonst (oder wenn Spotify nicht startet) als 30-Sekunden-Vorschau direkt in der App.
  */
 export function useSnippetPlayer() {
-  const { connected, getToken, handleAuthError } = useSpotify();
+  const { connected, getToken, handleAuthError, clientId, redirectUri } = useSpotify();
   const [status, setStatus] = useState<PlayerStatus>('idle');
   const [error, setError] = useState<SpotifyError | null>(null);
+  const [source, setSource] = useState<PlaybackSource | null>(null);
+  /** Gesetzt, wenn Spotify gewünscht war, aber der Ausschnitt einspringen musste. */
+  const [fallbackNote, setFallbackNote] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const device = useRef<Device | null>(null);
   const startPositions = useRef(new Map<string, number>());
   const finish = useRef<(() => void) | null>(null);
   /** Zählt Wiedergaben hoch, damit ein abgelöstes Snippet nicht das neue pausiert. */
   const generation = useRef(0);
-  const stoppedAt = useRef(-1);
+  const active = useRef<PlaybackSource | null>(null);
+  /** Ob der laufende Spotify-Song über die direkte Verbindung (App Remote) gestartet wurde. */
+  const viaRemote = useRef(false);
 
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -30,13 +58,89 @@ export function useSnippetPlayer() {
     finish.current = null;
   };
 
+  const silence = useCallback(async () => {
+    const was = active.current;
+    active.current = null;
+    stopPreview();
+    if (was === 'spotify') {
+      if (viaRemote.current) await remotePause();
+      else await pause(getToken, device.current?.id).catch(() => {});
+    }
+  }, [getToken]);
+
   const stop = useCallback(async () => {
-    stoppedAt.current = ++generation.current;
+    ++generation.current;
     clearTimer();
     setStatus('idle');
     setError(null);
-    if (connected) await pause(getToken, device.current?.id).catch(() => {});
-  }, [connected, getToken]);
+    await silence();
+  }, [silence]);
+
+  /** Versucht Spotify. Gibt false zurück, wenn Spotify nicht nachweislich spielt. */
+  const trySpotify = useCallback(
+    async (song: Song, seconds: number, startAt: 'intro' | 'middle', gen: number): Promise<boolean> => {
+      try {
+        const track = await resolveTrack(getToken, song);
+        const key = `spotify:${song.id}`;
+        let position = startPositions.current.get(key);
+        if (position === undefined) {
+          position =
+            startAt === 'intro'
+              ? 0
+              : Math.min(track.durationMs * (0.25 + Math.random() * 0.3), track.durationMs - seconds * 1000 - 2000);
+          position = Math.max(0, position);
+          startPositions.current.set(key, position);
+        }
+        if (remoteAvailable() && !remoteFailed) {
+          // Android: Spotify-App direkt steuern, das weckt sie auch aus dem Hintergrund.
+          try {
+            if (await remotePlay(clientId, redirectUri, track.uri, position)) {
+              active.current = 'spotify';
+              viaRemote.current = true;
+              lastSpotifyError = null;
+              return true;
+            }
+            await remotePause();
+          } catch (e) {
+            // Z. B. fehlt der Eintrag im Spotify-Dashboard: dann wie früher über Spotify Connect versuchen.
+            remoteFailed = true;
+            lastSpotifyError = e instanceof Error ? e.message : String(e);
+          }
+        }
+        viaRemote.current = false;
+        device.current ??= await pickDevice(getToken);
+        let result;
+        try {
+          result = await play(getToken, device.current, track.uri, position);
+        } catch (e) {
+          // Gerät könnte inzwischen weg sein: einmal neu suchen.
+          if (e instanceof SpotifyError && e.code === 'NO_DEVICE') {
+            device.current = await pickDevice(getToken);
+            result = await play(getToken, device.current, track.uri, position);
+          } else throw e;
+        }
+        if (result.verified) {
+          device.current = { ...device.current, is_active: true };
+          active.current = 'spotify';
+          lastSpotifyError = null;
+          return true;
+        }
+        // Spotify hat den Befehl angenommen, spielt aber nicht: sicherheitshalber anhalten.
+        await pause(getToken, device.current.id).catch(() => {});
+        lastSpotifyError = 'Spotify hat den Song nicht gestartet.';
+        spotifyUnreliable = true;
+        return false;
+      } catch (e) {
+        device.current = null;
+        lastSpotifyError = e instanceof Error ? e.message : String(e);
+        spotifyUnreliable = true;
+        // Bei abgelaufenem Login wird die Verbindung getrennt, gespielt wird trotzdem (als Ausschnitt).
+        handleAuthError(e);
+        return false;
+      }
+    },
+    [getToken, handleAuthError, clientId, redirectUri],
+  );
 
   /** Spielt `seconds` Sekunden des Songs. Die Startposition bleibt pro Song gleich, auch beim Nochmal-Hören. */
   const playSnippet = useCallback(
@@ -45,46 +149,34 @@ export function useSnippetPlayer() {
       clearTimer();
       setError(null);
       setStatus('loading');
+      await silence();
       try {
-        if (connected) {
-          const track = await resolveTrack(getToken, song);
-          let position = startPositions.current.get(song.id);
-          if (position === undefined) {
-            position =
-              startAt === 'intro'
-                ? 0
-                : Math.min(track.durationMs * (0.25 + Math.random() * 0.3), track.durationMs - seconds * 1000 - 2000);
-            startPositions.current.set(song.id, Math.max(0, position));
-          }
-          device.current ??= await pickDevice(getToken);
-          let result;
-          try {
-            result = await play(getToken, device.current, track.uri, position);
-          } catch (e) {
-            // Gerät könnte inzwischen weg sein: einmal neu suchen.
-            if (e instanceof SpotifyError && e.code === 'NO_DEVICE') {
-              device.current = await pickDevice(getToken);
-              result = await play(getToken, device.current, track.uri, position);
-            } else throw e;
-          }
-          if (result.verified) {
-            // Ab jetzt ist das Gerät aktiv, spätere Snippets brauchen keinen Wechsel mehr.
-            device.current = { ...device.current, is_active: true };
-          } else if (gen === generation.current) {
-            // Nur ein Hinweis: Das Spiel läuft weiter, falls die Musik doch spielt.
-            setError(
-              new SpotifyError(
-                `Spotify meldet auf „${device.current.name}“ keine Wiedergabe. Kein Ton? Tippe auf „Spotify öffnen“, drück dort kurz auf Play und komm zurück.`,
-                'NOT_PLAYING',
-              ),
-            );
-          }
-        }
+        let used: PlaybackSource = 'preview';
+        const wantSpotify = connected && getMusicSource() === 'auto' && !spotifyUnreliable;
+        if (wantSpotify && (await trySpotify(song, seconds, startAt, gen))) used = 'spotify';
         if (gen !== generation.current) {
-          // Während des Ladens wurde gestoppt: Musik gleich wieder aus.
-          if (connected && stoppedAt.current === generation.current) await pause(getToken, device.current?.id);
+          if (active.current === 'spotify') await silence();
           return false;
         }
+        if (used === 'preview') {
+          const url = await findPreview(song);
+          if (gen !== generation.current) return false;
+          const key = `preview:${song.id}`;
+          let start = startPositions.current.get(key);
+          if (start === undefined) {
+            const room = Math.max(0, PREVIEW_SECONDS - seconds - 1);
+            start = startAt === 'intro' ? 0 : Math.round(Math.random() * room);
+            startPositions.current.set(key, start);
+          }
+          await playPreview(url, start);
+          if (gen !== generation.current) {
+            stopPreview();
+            return false;
+          }
+          active.current = 'preview';
+        }
+        setSource(used);
+        setFallbackNote(used === 'preview' && wantSpotify ? lastSpotifyError ?? 'Spotify hat nicht gestartet.' : null);
         setStatus('playing');
         await new Promise<void>((resolve) => {
           finish.current = resolve;
@@ -92,22 +184,33 @@ export function useSnippetPlayer() {
         });
         if (gen !== generation.current) return false;
         finish.current = null;
-        if (connected) await pause(getToken, device.current?.id);
+        await silence();
         setStatus('idle');
         return true;
       } catch (e) {
         if (gen !== generation.current) return false;
-        device.current = null;
-        handleAuthError(e);
+        await silence();
         setError(e instanceof SpotifyError ? e : new SpotifyError(String((e as Error)?.message ?? e), 'OTHER'));
         setStatus('error');
         return false;
       }
     },
-    [connected, getToken, handleAuthError],
+    [connected, silence, trySpotify],
   );
 
-  useEffect(() => () => clearTimer(), []);
+  // Neue Spotify-Verbindung: Spotify wieder eine Chance geben.
+  useEffect(() => {
+    if (connected && !wasConnected) spotifyUnreliable = false;
+    wasConnected = connected;
+  }, [connected]);
 
-  return { status, error, playSnippet, stop, demo: !connected };
+  useEffect(
+    () => () => {
+      clearTimer();
+      stopPreview();
+    },
+    [],
+  );
+
+  return { status, error, playSnippet, stop, source, fallbackNote };
 }

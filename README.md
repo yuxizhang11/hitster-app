@@ -1,7 +1,7 @@
 # Hitster – Musik-Ratespiel fürs Handy
 
 Ein Hitster-artiges Partyspiel für iPhone und Android (Expo / React Native). Ein Handy wird herumgereicht, man tippt auf
-den Plattenteller, eine Animation startet und ein Song-Ausschnitt läuft über Spotify.
+den Plattenteller, eine Animation startet und ein Song-Ausschnitt läuft (über Spotify oder als 30-Sekunden-Vorschau).
 
 ## Spielmodi
 
@@ -29,8 +29,8 @@ npm install
 npx expo start
 ```
 
-Dann den QR-Code mit der **Expo Go**-App scannen. Ohne Spotify läuft ein stummer Demo-Modus, so kann man alles schon
-durchklicken.
+Dann den QR-Code mit der **Expo Go**-App scannen. Ohne Spotify spielt die App 30-Sekunden-Ausschnitte (iTunes, sonst
+Deezer), dafür braucht es nur Internet.
 
 ## APK zum Testen (Android)
 
@@ -43,17 +43,26 @@ Ab v0.3.0 sucht die App beim Start selbst nach einer neuen Release und zeigt dan
 **Version · Nach Updates suchen** (unten auf dem Startbildschirm) lässt sich die neue APK direkt herunterladen. Dafür muss
 das Repo öffentlich sein. Die Versionsnummer der App kommt beim Bauen automatisch aus dem Release-Tag.
 
-## Spotify einrichten (einmalig)
+## Musik
+
+Ohne Spotify spielt die App selbst einen 30-Sekunden-Ausschnitt jedes Songs (iTunes Search API, sonst Deezer).
+Mit Spotify-Verbindung läuft der ganze Song über die Spotify-App; startet Spotify nicht nachweislich, fällt die App
+automatisch auf den Ausschnitt zurück. Unter **Musik** lässt sich auch „Nur Ausschnitte“ einstellen.
+
+## Spotify einrichten (optional, einmalig)
 
 Spotify erlaubt das Abspielen über fremde Apps nur mit **Premium**. Die Musik läuft über die Spotify-App auf dem Handy.
 
-1. Auf <https://developer.spotify.com/dashboard> eine App anlegen, „Web API“ ankreuzen.
-2. Als Redirect-URI die Adresse eintragen, die in der App unter **Spotify** angezeigt wird
+1. Auf <https://developer.spotify.com/dashboard> eine App anlegen, „Web API“ und „Android“ ankreuzen.
+   Unter „Android packages“ den Paketnamen `com.yuxizhang.hitster` und den SHA1-Fingerabdruck
+   `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` eintragen (Debug-Schlüssel, mit dem die APK signiert ist).
+   Damit steuert die Android-App die Spotify-App direkt über Spotifys App-Remote-SDK.
+2. Als Redirect-URI die Adresse eintragen, die in der App unter **Musik** angezeigt wird
    (in der APK `hitster://spotify-auth`, in Expo Go etwas wie `exp://192.168.x.x:8081/--/spotify-auth`).
 3. Unter „User Management“ die Spotify-E-Mail aller Personen eintragen, die sich einloggen sollen
    (Apps im Entwicklungsmodus sind auf wenige Nutzer beschränkt).
-4. Die Client-ID in der App unter **Spotify** einfügen (oder als `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` in `.env`) und verbinden.
-5. Vor dem Spielen kurz die Spotify-App öffnen, damit das Handy als Abspielgerät erkannt wird.
+4. Die Client-ID in der App unter **Musik** einfügen (oder als `EXPO_PUBLIC_SPOTIFY_CLIENT_ID` in `.env`) und verbinden.
+5. In der App „Wiedergabe testen“ drücken. Beim ersten Mal fragt Spotify einmal nach Erlaubnis.
 
 Hinweis: Die Expo-Go-Adresse ändert sich mit der IP im WLAN. Für eine feste Adresse einen eigenen Build machen
 (`npx eas-cli@latest build --profile development`), dann gilt `hitster://spotify-auth`.
@@ -68,4 +77,7 @@ npm run typecheck  # TypeScript
 - `src/app/` Screens (Expo Router)
 - `src/game/` Spiellogik und Modi, ohne UI, getestet
 - `src/spotify/` Login (PKCE), Suche und Wiedergabe
+- `modules/spotify-remote/` natives Modul für Spotifys App-Remote-SDK (Android). Das SDK selbst lädt
+  `modules/spotify-remote/scripts/fetch-sdk.sh` beim Bauen aus github.com/spotify/android-sdk.
+- `src/audio/` 30-Sekunden-Ausschnitte (Suche bei iTunes/Deezer, Wiedergabe mit expo-audio)
 - `src/components/` Plattenteller-Animation, Antwort-Buttons, Karten

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, usePreventRemove } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Equalizer } from '../components/Equalizer';
 import { PlayOrb } from '../components/PlayOrb';
@@ -182,6 +182,17 @@ export default function GameScreen() {
 
   const orbState = intro ? 'loading' : player.status === 'loading' ? 'loading' : player.status === 'playing' ? 'playing' : !hasPlayed || replaysLeft > 0 ? 'idle' : 'disabled';
 
+  const compact = hasPlayed && !!question && (!mode.timeLimitSeconds || audioReady);
+  const statusText = !hasPlayed
+    ? 'Tippe auf die Platte, um den Song zu hören'
+    : player.status === 'playing'
+      ? `Läuft… ${snippetSeconds} Sekunden`
+      : pokerStages
+        ? `Du hast ${snippetSeconds} s gehört`
+        : replaysLeft > 0
+          ? `Nochmal hören: noch ${replaysLeft}×`
+          : ' ';
+
   return (
     <Screen>
       <View style={styles.topBar}>
@@ -226,44 +237,46 @@ export default function GameScreen() {
       )}
 
       {phase === 'listen' && turn && current && (
-        <View style={{ gap: 16 }}>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={styles.turnOf}>{current.name} ist dran</Text>
-            <PlayOrb state={orbState} onPress={onOrbPress} gradient={mode.colors} size={190} />
-            <Equalizer active={player.status === 'playing'} colors={mode.colors} />
-            <P style={{ marginTop: 8, textAlign: 'center' }}>
-              {!hasPlayed
-                ? 'Tippe auf die Platte, um den Song zu hören'
-                : player.status === 'playing'
-                  ? player.demo
-                    ? 'Demo-Modus: kein Ton (Spotify nicht verbunden)'
-                    : `Läuft… ${snippetSeconds} Sekunden`
-                  : pokerStages
-                    ? `Du hast ${snippetSeconds} s gehört`
-                    : replaysLeft > 0
-                      ? `Nochmal hören: noch ${replaysLeft}×`
-                      : ' '}
-            </P>
-          </View>
+        <View style={{ gap: compact ? 12 : 16 }}>
+          {compact ? (
+            // Sobald die Frage da ist, wird die Platte klein, damit alles ohne Scrollen passt.
+            <View style={styles.compactHead}>
+              <PlayOrb state={orbState} onPress={onOrbPress} gradient={mode.colors} size={64} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={[styles.turnOf, { marginBottom: 0, fontSize: 17 }]}>{current.name} ist dran</Text>
+                <Equalizer active={player.status === 'playing'} colors={mode.colors} />
+                <Text style={styles.compactStatus}>{statusText}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center' }}>
+              <Text style={styles.turnOf}>{current.name} ist dran</Text>
+              <PlayOrb state={orbState} onPress={onOrbPress} gradient={mode.colors} size={190} />
+              <Equalizer active={player.status === 'playing'} colors={mode.colors} />
+              <P style={{ marginTop: 8, textAlign: 'center' }}>{statusText}</P>
+            </View>
+          )}
 
+          {player.fallbackNote && player.status === 'playing' && (
+            <Text style={{ color: colors.yellow, fontSize: 13, textAlign: 'center' }}>
+              Spotify ging nicht ({player.fallbackNote}), es läuft ein Ausschnitt. Mehr unter Musik › Wiedergabe testen.
+            </Text>
+          )}
           {player.error && (
             <Card style={{ borderColor: colors.red, gap: 10 }}>
               <P style={{ color: colors.text }}>{player.error.message}</P>
-              {(player.error.code === 'NO_DEVICE' || player.error.code === 'NOT_PLAYING') && (
-                <Button title="Spotify öffnen" variant="ghost" onPress={() => Linking.openURL('spotify:').catch(() => {})} />
-              )}
               <Button title="Nochmal versuchen" variant="ghost" onPress={() => playCurrent()} />
             </Card>
           )}
 
-          {hasPlayed && question && (!mode.timeLimitSeconds || audioReady) && (
-            <View style={{ gap: 12 }}>
+          {compact && question && (
+            <View style={{ gap: 10 }}>
               {turn.questions.length > 1 && (
                 <Text style={styles.qCounter}>
                   Frage {turn.questionIndex + 1} von {turn.questions.length}
                 </Text>
               )}
-              <H1 style={{ fontSize: 24 }}>{QUESTION_LABEL[question.type]}</H1>
+              <H1 style={{ fontSize: 22 }}>{QUESTION_LABEL[question.type]}</H1>
               {mode.timeLimitSeconds && (
                 <CountdownBar
                   key={turn.song.id}
@@ -386,7 +399,7 @@ function Reveal({
   }, [turn.song.id, bounce]);
 
   return (
-    <View style={{ gap: 18, alignItems: 'center' }}>
+    <View style={{ gap: 12, alignItems: 'center' }}>
       <Animated.Text
         style={[
           styles.headline,
@@ -396,7 +409,7 @@ function Reveal({
         {headline}
       </Animated.Text>
       {points > 0 && <Text style={styles.points}>+{points} {points === 1 ? 'Punkt' : 'Punkte'}</Text>}
-      <RevealCard song={turn.song} gradient={game.mode.colors} />
+      <RevealCard song={turn.song} gradient={game.mode.colors} compact={turn.results.length > 1} />
       <View style={{ alignSelf: 'stretch', gap: 8 }}>
         {turn.results.map((r, i) => (
           <Card key={i} style={styles.resultRow}>
@@ -445,14 +458,16 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5 },
   scoreName: { color: colors.text, fontWeight: '700', maxWidth: 110 },
   scoreValue: { color: colors.yellow, fontWeight: '900' },
+  compactHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  compactStatus: { color: colors.textDim, fontSize: 14 },
   turnOf: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: -10 },
   qCounter: { color: colors.cyan, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', fontSize: 12 },
   pokerPts: { color: colors.yellow, fontWeight: '800', textAlign: 'center' },
   handoff: { alignItems: 'center', gap: 8, paddingVertical: 60 },
   handoffName: { fontSize: 48, fontWeight: '900', textAlign: 'center' },
-  headline: { fontSize: 34, fontWeight: '900', textAlign: 'center' },
-  points: { color: colors.yellow, fontSize: 22, fontWeight: '900', marginTop: -10 },
-  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  headline: { fontSize: 30, fontWeight: '900', textAlign: 'center' },
+  points: { color: colors.yellow, fontSize: 20, fontWeight: '900', marginTop: -8 },
+  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 },
   resultQ: { color: colors.textDim, fontSize: 13 },
   resultA: { color: colors.text, fontWeight: '700', fontSize: 15 },
 });

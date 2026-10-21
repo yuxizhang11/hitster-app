@@ -29,7 +29,9 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-audio",
+      "./modules/spotify-remote/app.plugin.js"
     ],
     "scheme": "hitster",
     "backgroundColor": "#0B0620",

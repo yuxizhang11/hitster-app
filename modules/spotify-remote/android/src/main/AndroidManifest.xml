@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Ab Android 11 muss die App angeben, dass sie mit der Spotify-App sprechen will. -->
+  <queries>
+    <package android:name="com.spotify.music" />
+  </queries>
+</manifest>

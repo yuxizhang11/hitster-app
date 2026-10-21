@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Equalizer } from '../components/Equalizer';
 import { PlayOrb } from '../components/PlayOrb';
@@ -166,19 +166,19 @@ export default function GroupScreen() {
             {!hasPlayed
               ? 'Tippe auf die Platte, dann läuft der Song für alle'
               : player.status === 'playing'
-                ? player.demo
-                  ? 'Demo-Modus: kein Ton (Spotify nicht verbunden)'
-                  : 'Läuft… jetzt aufschreiben!'
+                ? 'Läuft… jetzt aufschreiben!'
                 : replaysLeft > 0
                   ? `Nochmal hören: noch ${replaysLeft}×`
                   : 'Stifte weg, gleich wird aufgelöst'}
           </P>
+          {player.fallbackNote && player.status === 'playing' && (
+            <Text style={{ color: colors.yellow, fontSize: 13, textAlign: 'center' }}>
+              Spotify ging nicht ({player.fallbackNote}), es läuft ein Ausschnitt. Mehr unter Musik › Wiedergabe testen.
+            </Text>
+          )}
           {player.error && (
             <Card style={{ borderColor: colors.red, gap: 10, alignSelf: 'stretch' }}>
               <P style={{ color: colors.text }}>{player.error.message}</P>
-              {(player.error.code === 'NO_DEVICE' || player.error.code === 'NOT_PLAYING') && (
-                <Button title="Spotify öffnen" variant="ghost" onPress={() => Linking.openURL('spotify:').catch(() => {})} />
-              )}
               <Button title="Nochmal versuchen" variant="ghost" onPress={() => play()} />
             </Card>
           )}

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ExpoDevice from 'expo-device';
 
 import type { Song } from '../data/types';
+import { ANDROID_PACKAGE, ANDROID_SHA1, RemoteError, remoteAvailable, remoteConnect, remotePause, remotePlay } from './remote';
 
 const API = 'https://api.spotify.com/v1';
 // v2: Suche jetzt mit market=from_token, alte Treffer waren evtl. im eigenen Land nicht abspielbar.
@@ -263,10 +264,20 @@ export async function loadPlaylist(getToken: GetToken, playlistId: string): Prom
   return { name: meta?.name ?? 'Meine Playlist', songs };
 }
 
-export type DiagnoseStep = { ok: boolean; text: string };
+export type DiagnoseStep = {
+  ok: boolean;
+  text: string;
+  /** Werte zum Kopieren, z. B. Paketname und SHA1 fürs Spotify-Dashboard. */
+  copy?: { label: string; value: string }[];
+  /** Technische Originalmeldung, klein darunter. */
+  detail?: string;
+};
 
 /** Prüft Schritt für Schritt, ob Spotify auf diesem Handy abspielen kann, und spielt kurz einen Testsong. */
-export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep[]> {
+export async function diagnosePlayback(
+  getToken: GetToken,
+  remote?: { clientId: string; redirectUri: string },
+): Promise<DiagnoseStep[]> {
   const steps: DiagnoseStep[] = [];
   try {
     const me = await getMe(getToken);
@@ -278,6 +289,12 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
         : `Konto „${me?.product ?? '?'}“: Abspielen geht nur mit Premium`,
     });
     if (!premium) return steps;
+    if (remote && remoteAvailable()) {
+      const remoteSteps = await diagnoseRemote(getToken, remote);
+      steps.push(...remoteSteps);
+      // Klappt die direkte Verbindung, ist der Test fertig. Sonst wie früher über Spotify Connect weiterprüfen.
+      if (remoteSteps.every((s) => s.ok)) return steps;
+    }
     const devices = await listDevices(getToken);
     steps.push({
       ok: devices.length > 0,
@@ -287,13 +304,7 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
     });
     if (!devices.length) return steps;
     const device = await pickDevice(getToken);
-    const track = await resolveTrack(getToken, {
-      id: 'test:mr-brightside',
-      title: 'Mr. Brightside',
-      artist: 'The Killers',
-      year: 2004,
-      category: 'test',
-    });
+    const track = await resolveTrack(getToken, TEST_SONG);
     const result = await play(getToken, device, track.uri, 30_000);
     const st = result.state;
     steps.push({
@@ -308,6 +319,43 @@ export async function diagnosePlayback(getToken: GetToken): Promise<DiagnoseStep
     });
     await wait(4000);
     await pause(getToken, device.id);
+  } catch (e) {
+    steps.push({ ok: false, text: e instanceof Error ? e.message : String(e) });
+  }
+  return steps;
+}
+
+const TEST_SONG: Song = { id: 'test:mr-brightside', title: 'Mr. Brightside', artist: 'The Killers', year: 2004, category: 'test' };
+
+/** Test über die direkte Verbindung zur Spotify-App (Android). */
+async function diagnoseRemote(getToken: GetToken, remote: { clientId: string; redirectUri: string }): Promise<DiagnoseStep[]> {
+  const steps: DiagnoseStep[] = [];
+  try {
+    await remoteConnect(remote.clientId, remote.redirectUri);
+    steps.push({ ok: true, text: 'Direkt mit der Spotify-App auf diesem Handy verbunden' });
+  } catch (e) {
+    const err = e instanceof RemoteError ? e : null;
+    steps.push({
+      ok: false,
+      text: e instanceof Error ? e.message : String(e),
+      detail: err?.detail || undefined,
+      copy: err?.needsDashboard
+        ? [
+            { label: 'Package name', value: ANDROID_PACKAGE },
+            { label: 'SHA1', value: ANDROID_SHA1 },
+          ]
+        : undefined,
+    });
+    return steps;
+  }
+  try {
+    const track = await resolveTrack(getToken, TEST_SONG);
+    const ok = await remotePlay(remote.clientId, remote.redirectUri, track.uri, 30_000);
+    steps.push({ ok, text: ok ? 'Testsong läuft über die Spotify-App' : 'Spotify hat den Testsong nicht gestartet' });
+    if (ok) {
+      await wait(4000);
+      await remotePause();
+    }
   } catch (e) {
     steps.push({ ok: false, text: e instanceof Error ? e.message : String(e) });
   }
