@@ -35,6 +35,12 @@ export function remoteMessage(e: unknown): RemoteError {
   const msg = String((e as Error)?.message ?? e);
   const has = (s: string) => code.includes(s) || msg.includes(s);
   const detail = [code, msg].filter(Boolean).join(': ');
+  if (has('Timeout'))
+    return new RemoteError(
+      'Die Spotify-App antwortet nicht. Meist blockiert Android sie im Hintergrund: In den Handy-Einstellungen bei Spotify den Akku auf „Uneingeschränkt“ stellen und „Autostart“ bzw. „Von anderen Apps starten lassen“ erlauben. Danach in Hitster einmal „Trennen“ und neu verbinden.',
+      code,
+      detail,
+    );
   if (has('CouldNotFindSpotifyApp')) return new RemoteError('Die Spotify-App ist auf diesem Handy nicht installiert.', code, detail);
   if (has('NotLoggedIn')) return new RemoteError('In der Spotify-App ist niemand angemeldet.', code, detail);
   if (has('UserNotAuthorized') || has('AuthenticationFailed'))
