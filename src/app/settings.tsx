@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useMusicSource } from '../audio/source';
+import { CopyRow } from '../components/CopyRow';
 import { Button, Card, H1, H2, P, Screen } from '../components/ui';
 import { diagnosePlayback, DiagnoseStep, loadPlaylist, parsePlaylistId } from '../spotify/api';
 import { useSpotify } from '../spotify/SpotifyContext';
@@ -113,11 +114,19 @@ export default function SettingsScreen() {
               icon={testing ? <ActivityIndicator color={colors.textDim} /> : <Ionicons name="volume-high" size={18} color={colors.textDim} />}
             />
             {testSteps?.map((step, i) => (
-              <View key={i} style={styles.status}>
-                <Ionicons name={step.ok ? 'checkmark-circle' : 'alert-circle'} size={20} color={step.ok ? colors.green : colors.yellow} />
-                <P style={{ flex: 1, color: colors.text }} selectable>
-                  {step.text}
-                </P>
+              <View key={i} style={{ gap: 8 }}>
+                <View style={styles.status}>
+                  <Ionicons name={step.ok ? 'checkmark-circle' : 'alert-circle'} size={20} color={step.ok ? colors.green : colors.yellow} />
+                  <P style={{ flex: 1, color: colors.text }} selectable>
+                    {step.text}
+                  </P>
+                </View>
+                {step.copy?.map((c) => <CopyRow key={c.label} label={c.label} value={c.value} />)}
+                {!!step.detail && (
+                  <Text selectable style={styles.detail}>
+                    Details: {step.detail}
+                  </Text>
+                )}
               </View>
             ))}
             <Button title="Trennen" variant="ghost" onPress={spotify.logout} />
@@ -193,16 +202,10 @@ export default function SettingsScreen() {
         <P>1. Auf developer.spotify.com/dashboard einloggen und „Create app“ wählen.</P>
         <P>2. Bei „Which API/SDKs are you planning to use?“ die Web API und Android ankreuzen.</P>
         <P>3. Diese Redirect-URI eintragen (genau so):</P>
-        <Text selectable style={styles.code}>
-          {spotify.redirectUri}
-        </Text>
+        <CopyRow label="Redirect URI" value={spotify.redirectUri} />
         <P>4. Unter „Android packages“ diesen Paketnamen und SHA1-Fingerabdruck eintragen:</P>
-        <Text selectable style={styles.code}>
-          {ANDROID_PACKAGE}
-        </Text>
-        <Text selectable style={styles.code}>
-          {ANDROID_SHA1}
-        </Text>
+        <CopyRow label="Package name" value={ANDROID_PACKAGE} />
+        <CopyRow label="SHA1" value={ANDROID_SHA1} />
         <P>5. Unter „User Management“ die Spotify-E-Mail aller Mitspieler eintragen, die sich einloggen sollen.</P>
         <P>6. Die Client-ID oben einfügen, verbinden und „Wiedergabe testen“ drücken. Beim ersten Mal fragt Spotify einmal nach Erlaubnis.</P>
       </Card>
@@ -211,6 +214,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  detail: { color: colors.textMuted, fontSize: 12, marginLeft: 30 },
   segment: { flexDirection: 'row', backgroundColor: colors.bgSoft, borderRadius: 14, padding: 4, gap: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 10, alignItems: 'center' },
   segmentText: { color: colors.textDim, fontWeight: '700', fontSize: 14, textAlign: 'center' },
@@ -225,14 +229,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: colors.bgSoft,
     borderRadius: 12,
-  },
-  code: {
-    color: colors.cyan,
-    fontFamily: 'Courier',
-    fontSize: 14,
-    backgroundColor: colors.bgSoft,
-    padding: 10,
-    borderRadius: 10,
   },
   customRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   customName: { color: colors.text, fontWeight: '700' },

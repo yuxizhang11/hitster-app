@@ -19,10 +19,13 @@ let spotifyUnreliable = false;
 let wasConnected = false;
 /** Warum Spotify zuletzt nicht gespielt hat, für den Hinweis im Spiel. */
 let lastSpotifyError: string | null = null;
+/** Die direkte Verbindung zur Spotify-App ist in dieser Sitzung gescheitert, dann gleich Spotify Connect nehmen. */
+let remoteFailed = false;
 
 /** Nach einem erfolgreichen Test in den Einstellungen Spotify wieder versuchen. */
 export function retrySpotify() {
   spotifyUnreliable = false;
+  remoteFailed = false;
   lastSpotifyError = null;
 }
 
@@ -44,6 +47,8 @@ export function useSnippetPlayer() {
   /** Zählt Wiedergaben hoch, damit ein abgelöstes Snippet nicht das neue pausiert. */
   const generation = useRef(0);
   const active = useRef<PlaybackSource | null>(null);
+  /** Ob der laufende Spotify-Song über die direkte Verbindung (App Remote) gestartet wurde. */
+  const viaRemote = useRef(false);
 
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -58,7 +63,7 @@ export function useSnippetPlayer() {
     active.current = null;
     stopPreview();
     if (was === 'spotify') {
-      if (remoteAvailable()) await remotePause();
+      if (viaRemote.current) await remotePause();
       else await pause(getToken, device.current?.id).catch(() => {});
     }
   }, [getToken]);
@@ -86,19 +91,23 @@ export function useSnippetPlayer() {
           position = Math.max(0, position);
           startPositions.current.set(key, position);
         }
-        if (remoteAvailable()) {
+        if (remoteAvailable() && !remoteFailed) {
           // Android: Spotify-App direkt steuern, das weckt sie auch aus dem Hintergrund.
-          const ok = await remotePlay(clientId, redirectUri, track.uri, position);
-          if (ok) {
-            active.current = 'spotify';
-            lastSpotifyError = null;
-            return true;
+          try {
+            if (await remotePlay(clientId, redirectUri, track.uri, position)) {
+              active.current = 'spotify';
+              viaRemote.current = true;
+              lastSpotifyError = null;
+              return true;
+            }
+            await remotePause();
+          } catch (e) {
+            // Z. B. fehlt der Eintrag im Spotify-Dashboard: dann wie früher über Spotify Connect versuchen.
+            remoteFailed = true;
+            lastSpotifyError = e instanceof Error ? e.message : String(e);
           }
-          await remotePause();
-          lastSpotifyError = 'Spotify hat den Song nicht gestartet.';
-          spotifyUnreliable = true;
-          return false;
         }
+        viaRemote.current = false;
         device.current ??= await pickDevice(getToken);
         let result;
         try {
@@ -113,6 +122,7 @@ export function useSnippetPlayer() {
         if (result.verified) {
           device.current = { ...device.current, is_active: true };
           active.current = 'spotify';
+          lastSpotifyError = null;
           return true;
         }
         // Spotify hat den Befehl angenommen, spielt aber nicht: sicherheitshalber anhalten.
@@ -123,7 +133,7 @@ export function useSnippetPlayer() {
       } catch (e) {
         device.current = null;
         lastSpotifyError = e instanceof Error ? e.message : String(e);
-        if (remoteAvailable()) spotifyUnreliable = true;
+        spotifyUnreliable = true;
         // Bei abgelaufenem Login wird die Verbindung getrennt, gespielt wird trotzdem (als Ausschnitt).
         handleAuthError(e);
         return false;

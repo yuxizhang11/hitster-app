@@ -13,6 +13,10 @@ export class RemoteError extends Error {
   constructor(
     message: string,
     public code: string,
+    /** Originalmeldung des SDK, hilft bei der Fehlersuche. */
+    public detail = '',
+    /** True, wenn im Spotify-Dashboard Paket und SHA1 fehlen oder nicht passen. */
+    public needsDashboard = false,
   ) {
     super(message);
   }
@@ -30,16 +34,19 @@ export function remoteMessage(e: unknown): RemoteError {
   const code = String((e as { code?: string })?.code ?? '');
   const msg = String((e as Error)?.message ?? e);
   const has = (s: string) => code.includes(s) || msg.includes(s);
-  if (has('CouldNotFindSpotifyApp')) return new RemoteError('Die Spotify-App ist auf diesem Handy nicht installiert.', code);
-  if (has('NotLoggedIn')) return new RemoteError('In der Spotify-App ist niemand angemeldet.', code);
+  const detail = [code, msg].filter(Boolean).join(': ');
+  if (has('CouldNotFindSpotifyApp')) return new RemoteError('Die Spotify-App ist auf diesem Handy nicht installiert.', code, detail);
+  if (has('NotLoggedIn')) return new RemoteError('In der Spotify-App ist niemand angemeldet.', code, detail);
   if (has('UserNotAuthorized') || has('AuthenticationFailed'))
     return new RemoteError(
-      `Spotify lässt Hitster noch nicht direkt steuern. Im Spotify Developer Dashboard bei deiner App unter „Android packages“ eintragen: Paket ${ANDROID_PACKAGE}, SHA1 ${ANDROID_SHA1}.`,
+      'Spotify lässt Hitster noch nicht direkt steuern. Im Spotify Developer Dashboard unter „Android packages“ müssen genau diese Werte stehen. Nach dem Speichern kann es ein paar Minuten dauern.',
       code,
+      detail,
+      true,
     );
-  if (has('UnsupportedFeatureVersion')) return new RemoteError('Die Spotify-App ist zu alt, bitte aktualisieren.', code);
-  if (has('OfflineMode')) return new RemoteError('Die Spotify-App ist im Offline-Modus.', code);
-  return new RemoteError(msg || 'Verbindung zur Spotify-App fehlgeschlagen.', code || 'OTHER');
+  if (has('UnsupportedFeatureVersion')) return new RemoteError('Die Spotify-App ist zu alt, bitte aktualisieren.', code, detail);
+  if (has('OfflineMode')) return new RemoteError('Die Spotify-App ist im Offline-Modus.', code, detail);
+  return new RemoteError('Verbindung zur Spotify-App fehlgeschlagen.', code || 'OTHER', detail);
 }
 
 export async function remoteConnect(clientId: string, redirectUri: string) {

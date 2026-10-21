@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ExpoDevice from 'expo-device';
 
 import type { Song } from '../data/types';
-import { remoteAvailable, remoteConnect, remotePause, remotePlay } from './remote';
+import { ANDROID_PACKAGE, ANDROID_SHA1, RemoteError, remoteAvailable, remoteConnect, remotePause, remotePlay } from './remote';
 
 const API = 'https://api.spotify.com/v1';
 // v2: Suche jetzt mit market=from_token, alte Treffer waren evtl. im eigenen Land nicht abspielbar.
@@ -264,7 +264,14 @@ export async function loadPlaylist(getToken: GetToken, playlistId: string): Prom
   return { name: meta?.name ?? 'Meine Playlist', songs };
 }
 
-export type DiagnoseStep = { ok: boolean; text: string };
+export type DiagnoseStep = {
+  ok: boolean;
+  text: string;
+  /** Werte zum Kopieren, z. B. Paketname und SHA1 fürs Spotify-Dashboard. */
+  copy?: { label: string; value: string }[];
+  /** Technische Originalmeldung, klein darunter. */
+  detail?: string;
+};
 
 /** Prüft Schritt für Schritt, ob Spotify auf diesem Handy abspielen kann, und spielt kurz einen Testsong. */
 export async function diagnosePlayback(
@@ -282,7 +289,12 @@ export async function diagnosePlayback(
         : `Konto „${me?.product ?? '?'}“: Abspielen geht nur mit Premium`,
     });
     if (!premium) return steps;
-    if (remote && remoteAvailable()) return [...steps, ...(await diagnoseRemote(getToken, remote))];
+    if (remote && remoteAvailable()) {
+      const remoteSteps = await diagnoseRemote(getToken, remote);
+      steps.push(...remoteSteps);
+      // Klappt die direkte Verbindung, ist der Test fertig. Sonst wie früher über Spotify Connect weiterprüfen.
+      if (remoteSteps.every((s) => s.ok)) return steps;
+    }
     const devices = await listDevices(getToken);
     steps.push({
       ok: devices.length > 0,
@@ -322,7 +334,18 @@ async function diagnoseRemote(getToken: GetToken, remote: { clientId: string; re
     await remoteConnect(remote.clientId, remote.redirectUri);
     steps.push({ ok: true, text: 'Direkt mit der Spotify-App auf diesem Handy verbunden' });
   } catch (e) {
-    steps.push({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    const err = e instanceof RemoteError ? e : null;
+    steps.push({
+      ok: false,
+      text: e instanceof Error ? e.message : String(e),
+      detail: err?.detail || undefined,
+      copy: err?.needsDashboard
+        ? [
+            { label: 'Package name', value: ANDROID_PACKAGE },
+            { label: 'SHA1', value: ANDROID_SHA1 },
+          ]
+        : undefined,
+    });
     return steps;
   }
   try {
