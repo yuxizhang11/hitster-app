@@ -3,6 +3,8 @@ name: Startup crash check
 # Baut die App für den x86_64-Emulator, startet sie und speichert das Absturzprotokoll.
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/startup-crash]
 
 jobs:
   emulator:
