@@ -55,12 +55,11 @@ jobs:
       - name: Android-Projekt erzeugen
         run: npx expo prebuild --platform android --no-install
 
-      # x86_64 ist für den Android-Emulator auf PCs nötig.
       # Expo signiert Release-Builds standardmäßig mit dem Debug-Schlüssel: zum Testen installierbar,
       # für den Play Store braucht es später einen eigenen Schlüssel.
       - name: APK bauen
         working-directory: android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64 --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon
 
       - name: APK umbenennen
         run: |
