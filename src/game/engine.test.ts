@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { Song } from '../data/types';
 import type { ModeDef } from './modes';
 import {
+  pickSongs,
   answer, createGame, decadeLabel, endGroupRound, endTurn, givePoints, insertSorted, slotIsCorrect, startGroupRound, startTurn,
   turnIsDone, winners, yearPoints, decadeOptions,
 } from './engine.ts';
@@ -124,4 +125,15 @@ test('decadeOptions: nur Jahrzehnte aus dem Spiel, nie in der Zukunft', () => {
   assert.deepEqual(opts, [...opts].sort((a, b) => a - b));
   // Nur ein Jahrzehnt im Spiel: Nachbarn, aber keine 2030er
   assert.deepEqual(decadeOptions(2022, [mk(2021), mk(2024)], Math.random, 2026), [2000, 2010, 2020]);
+});
+
+test('pickSongs filtert nach Jahrzehnten und entfernt Doppelte', () => {
+  const song = (title: string, year: number): Song => ({ id: title, title, artist: 'A', year, category: 'x' });
+  const cats = [
+    { id: 'a', songs: [song('Eins', 1985), song('Zwei', 1999)] },
+    { id: 'b', songs: [song('Eins', 1985), song('Drei', 2012)] },
+  ];
+  assert.deepEqual(pickSongs(cats, ['a', 'b']).map((s) => s.title), ['Eins', 'Zwei', 'Drei']);
+  assert.deepEqual(pickSongs(cats, ['a', 'b'], [1980, 2010]).map((s) => s.title), ['Eins', 'Drei']);
+  assert.deepEqual(pickSongs(cats, ['b'], []).map((s) => s.title), ['Eins', 'Drei']);
 });

@@ -73,6 +73,24 @@ jobs:
           name: hitster-apk
           path: ${{ env.APK_NAME }}
 
+      # Neuerungen dieser Version aus RELEASE_NOTES.txt (Zeilen nach „0.7.0 – Datum“ bis zur nächsten Version).
+      # Die App zeigt die „- “-Zeilen im Update-Popup und in der Benachrichtigung.
+      - name: Release-Text erstellen
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+        run: |
+          VERSION="${{ inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^"v" (–|-) " { on = 1; next }
+            on && /^[0-9]+\.[0-9]+(\.[0-9]+)? (–|-) / { exit }
+            on && /^- / { print }
+          ' RELEASE_NOTES.txt > release-notes.md
+          {
+            echo
+            echo "Android-APK. In der App unter „Nach Updates suchen“ installieren, oder hier herunterladen, öffnen und „Installation aus unbekannten Quellen“ erlauben."
+          } >> release-notes.md
+          cat release-notes.md
+
       - name: Release veröffentlichen
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
         uses: softprops/action-gh-release@v2
@@ -80,6 +98,4 @@ jobs:
           tag_name: ${{ inputs.version || github.ref_name }}
           target_commitish: ${{ github.sha }}
           files: ${{ env.APK_NAME }}
-          body: |
-            Android-APK zum Testen. Auf dem Handy herunterladen, öffnen und „Installation aus unbekannten Quellen“ erlauben.
-            Musik läuft ohne Einrichtung als 30-Sekunden-Ausschnitt. Für ganze Songs über Spotify in der App unter „Musik“ die Client-ID eintragen (Anleitung in der README).
+          body_path: release-notes.md

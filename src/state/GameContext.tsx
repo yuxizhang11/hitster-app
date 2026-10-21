@@ -3,7 +3,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 
 import { CATEGORIES } from '../data/songs';
 import type { Category, Song } from '../data/types';
-import { createGame, GameState, Scoring } from '../game/engine';
+import { createGame, GameState, pickSongs, Scoring } from '../game/engine';
 import { getMode, ModeId } from '../game/modes';
 
 const CUSTOM_KEY = 'custom-categories-v1';
@@ -18,6 +18,8 @@ export type Setup = {
   players: string[];
   modeId: ModeId;
   categoryIds: string[];
+  /** Leer oder fehlend = alle Jahrzehnte. */
+  decades?: number[];
   target?: number;
   scoring?: Scoring;
 };
@@ -149,7 +151,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const startGame = useCallback(
     (s: Setup) => {
       setSetup(s);
-      const songs = categories.filter((c) => s.categoryIds.includes(c.id)).flatMap((c) => c.songs);
+      const songs = pickSongs(categories, s.categoryIds, s.decades);
       const g = createGame(getMode(s.modeId), s.players, songs, { target: s.target, scoring: s.scoring });
       setGame(g);
       return g;
