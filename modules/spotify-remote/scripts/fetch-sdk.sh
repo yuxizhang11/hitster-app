@@ -4,6 +4,11 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$DIR/android/libs/maven/com/spotify/android/app-remote-local/1.0.0"
+# Neueste 2.x-Version der Auth-Bibliothek von Maven Central nehmen (Fallback 2.1.0), damit die API passt.
+AUTH_VERSION="$(curl -fsSL https://repo1.maven.org/maven2/com/spotify/android/auth/maven-metadata.xml 2>/dev/null | sed -n 's:.*<version>\(2\.[0-9.]*\)</version>.*:\1:p' | sort -V | tail -1 || true)"
+mkdir -p "$DIR/android/libs"
+echo "${AUTH_VERSION:-2.1.0}" > "$DIR/android/libs/auth-version.txt"
+echo "Spotify Auth ${AUTH_VERSION:-2.1.0}"
 if [ -f "$DEST/app-remote-local-1.0.0.aar" ]; then echo "Spotify SDK schon da"; exit 0; fi
 TMP="$(mktemp -d)"
 git clone --depth 1 https://github.com/spotify/android-sdk "$TMP/sdk"

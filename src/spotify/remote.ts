@@ -50,17 +50,32 @@ export function remoteMessage(e: unknown): RemoteError {
       detail,
       true,
     );
+  if (has('AuthorizationCancelled')) return new RemoteError('Die Spotify-Erlaubnis wurde abgebrochen. Beim Testen bitte in Spotify zustimmen.', code, detail);
+  if (has('AuthorizationError'))
+    return new RemoteError(
+      `Spotify hat die Erlaubnis verweigert (${msg}). Prüfe im Spotify-Dashboard Redirect-URI, Android-Paket und SHA1.`,
+      code,
+      detail,
+      true,
+    );
   if (has('UnsupportedFeatureVersion')) return new RemoteError('Die Spotify-App ist zu alt, bitte aktualisieren.', code, detail);
   if (has('OfflineMode')) return new RemoteError('Die Spotify-App ist im Offline-Modus.', code, detail);
   return new RemoteError('Verbindung zur Spotify-App fehlgeschlagen.', code || 'OTHER', detail);
 }
 
+/** Einmal pro App-Start die Erlaubnis im Vordergrund holen; danach verbindet das SDK ohne eigenen Dialog. */
+let authorized = false;
+
 export async function remoteConnect(clientId: string, redirectUri: string) {
   if (!SpotifyRemote) throw new RemoteError('Nur in der Android-App möglich.', 'Unavailable');
   if (SpotifyRemote.isConnected()) return;
   try {
-    // Beim ersten Mal fragt Spotify einmalig nach Erlaubnis, daher großzügig warten.
-    await timeout(SpotifyRemote.connect(clientId, redirectUri), 30_000, 'Die Verbindung zur Spotify-App');
+    if (!authorized) {
+      // Öffnet kurz Spotify. Ist die Erlaubnis schon erteilt, kommt Spotify sofort zurück.
+      await timeout(SpotifyRemote.authorize(clientId, redirectUri), 120_000, 'Die Spotify-Erlaubnis');
+      authorized = true;
+    }
+    await timeout(SpotifyRemote.connect(clientId, redirectUri), 20_000, 'Die Verbindung zur Spotify-App');
   } catch (e) {
     throw remoteMessage(e);
   }
