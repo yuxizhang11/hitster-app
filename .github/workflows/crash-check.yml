@@ -1,0 +1,53 @@
+name: Startup crash check
+
+# Baut die App für den x86_64-Emulator, startet sie und speichert das Absturzprotokoll.
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/startup-crash]
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: bash modules/spotify-remote/scripts/fetch-sdk.sh
+      - run: npx expo prebuild --platform android --no-install
+      - name: APK bauen
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: KVM aktivieren
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Im Emulator starten
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: |
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
+            adb logcat -c
+            adb shell monkey -p com.yuxizhang.hitster -c android.intent.category.LAUNCHER 1
+            sleep 25
+            adb logcat -d > logcat.txt || true
+            grep -E "FATAL|AndroidRuntime|ReactNativeJS" logcat.txt | head -80 || true
+            adb shell pidof com.yuxizhang.hitster || { echo "App ist abgestürzt"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logcat
+          path: logcat.txt

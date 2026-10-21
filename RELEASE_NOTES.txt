@@ -3,6 +3,9 @@ Neueste Version zuerst. Jede Version beginnt mit einer Zeile „Version – Datu
 darunter kurze Punkte mit „- “. Die App zeigt diese Neuerungen im Popup und unter „Updates“,
 und der Build nimmt den Abschnitt der neuen Version als Text fürs Release.
 
+0.7.1 – 21.10.2026
+- Behoben: Hitster 0.7.0 schloss sich direkt nach dem Start wieder
+
 0.7.0 – 21.10.2026
 - Neues Spiel steht wieder auf einer Seite: Spieler, Spielmodus und Musik ohne Weiter-Schritte
 - Neue Spielmodi: Intro-Raten (nur die ersten 5 Sekunden), Jahrzehnt-Blitz (gegen die Uhr) und Zeitstrahl-K.o. (ein Fehler und du bist raus)
